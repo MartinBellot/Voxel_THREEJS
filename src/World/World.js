@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createNoise3D, createNoise2D } from 'simplex-noise';
 import { Chunk } from './Chunk.js';
+import { SeededRandom } from '../Utils/SeededRandom.js';
 
 export class World {
   constructor(game) {
@@ -11,10 +12,13 @@ export class World {
     this.renderDistance = 6; // High detail distance
     this.farRenderDistance = 16; // Low detail distance (Immense)
     this.seaLevel = 40;
-    this.noise3D = createNoise3D();
-    this.noise2D = createNoise2D();
-    this.biomeNoise = createNoise2D();
     
+    // Default seed
+    this.seed = Math.random();
+    this.setupNoise();
+    
+    this.modifications = new Map(); // Key: "x,y,z", Value: blockType
+
     this.params = {
         terrainScale: 30,
         terrainOffset: 0
@@ -26,6 +30,56 @@ export class World {
 
     // Génération initiale synchrone
     this.generateInitialChunks();
+  }
+
+  setupNoise() {
+      const rng = new SeededRandom(this.seed);
+      // Create noise functions using the seeded random
+      this.noise3D = createNoise3D(() => rng.random());
+      this.noise2D = createNoise2D(() => rng.random());
+      this.biomeNoise = createNoise2D(() => rng.random());
+  }
+
+  setSeed(seed) {
+      console.log("Setting world seed:", seed);
+      this.seed = seed;
+      this.setupNoise();
+      
+      // Clear and regenerate
+      this.chunks.forEach(chunk => {
+          if (chunk.meshes) {
+              Object.values(chunk.meshes).forEach(mesh => {
+                  this.game.scene.remove(mesh);
+                  mesh.geometry.dispose();
+                  mesh.material.dispose();
+              });
+          }
+          if (chunk.waterMesh) {
+              this.game.scene.remove(chunk.waterMesh);
+              chunk.waterMesh.geometry.dispose();
+              chunk.waterMesh.material.dispose();
+          }
+      });
+      this.chunks.clear();
+      this.chunksToLoad = []; // Clear pending chunks
+      this.lastChunkUpdatePos = { x: -999, z: -999 }; // Force update
+      this.update(0); // Trigger update immediately
+  }
+
+  setModifications(modifications) {
+      this.modifications = new Map();
+      for (const [key, value] of Object.entries(modifications)) {
+          this.modifications.set(key, value);
+      }
+      // If we receive modifications after generation, we might need to update chunks
+      // But usually this is called at start.
+      // If called later, we should probably re-render affected chunks.
+  }
+
+  addModification(x, y, z, type) {
+      const key = `${x},${y},${z}`;
+      this.modifications.set(key, type);
+      this.setBlock(x, y, z, type);
   }
 
   getBiome(x, z) {

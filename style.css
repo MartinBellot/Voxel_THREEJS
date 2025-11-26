@@ -224,3 +224,33 @@ canvas {
   text-shadow: 1px 1px 0 #000;
   transform: translate(-50%, -50%);
 }
+
+#player-list {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 20px;
+  border-radius: 10px;
+  min-width: 300px;
+  font-family: monospace;
+  z-index: 1000;
+}
+
+#player-list h3 {
+  text-align: center;
+  margin-bottom: 10px;
+  border-bottom: 1px solid white;
+  padding-bottom: 5px;
+}
+
+#player-list ul {
+  list-style: none;
+}
+
+#player-list li {
+  padding: 5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}

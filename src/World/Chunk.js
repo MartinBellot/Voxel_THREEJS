@@ -84,6 +84,13 @@ export class Chunk {
         for (let y = 0; y < this.height; y++) {
           const index = this.getBlockIndex(x, y, z);
           
+          // Check for server modifications first
+          const modKey = `${worldX},${y},${worldZ}`;
+          if (this.world.modifications.has(modKey)) {
+              this.data[index] = this.world.modifications.get(modKey);
+              continue; // Skip procedural generation for this block
+          }
+
           if (y === 0) {
             this.data[index] = BlockType.BEDROCK;
           } else if (y < surfaceHeight) {

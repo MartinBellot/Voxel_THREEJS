@@ -4,6 +4,7 @@ import { Player } from './Player/Player.js';
 import { Clouds } from './World/Clouds.js';
 import { Console } from './Console.js';
 import { TextureManager } from './Utils/TextureManager.js';
+import { NetworkManager } from './NetworkManager.js';
 
 export class Game {
   constructor() {
@@ -41,6 +42,11 @@ export class Game {
     this.player = new Player(this);
     this.clouds = new Clouds(this);
     this.console = new Console(this);
+    
+    // Network
+    this.networkManager = new NetworkManager(this);
+    const username = "Player" + Math.floor(Math.random() * 1000);
+    this.networkManager.connect(username);
 
     this.setupLights();
     this.setupCelestialBodies();
@@ -182,6 +188,46 @@ export class Game {
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(window.innerWidth, window.innerHeight);
     });
+
+    window.addEventListener('keydown', (event) => {
+      if (event.code === 'Tab') {
+        event.preventDefault();
+        document.getElementById('player-list').style.display = 'block';
+      }
+    });
+
+    window.addEventListener('keyup', (event) => {
+      if (event.code === 'Tab') {
+        event.preventDefault();
+        document.getElementById('player-list').style.display = 'none';
+      }
+    });
+  }
+
+  updatePlayerList(players) {
+    const list = document.getElementById('player-list-ul');
+    list.innerHTML = '';
+    players.forEach(player => {
+      const li = document.createElement('li');
+      li.innerText = player.username;
+      li.id = `player-li-${player.id}`;
+      list.appendChild(li);
+    });
+  }
+
+  addPlayerToTab(player) {
+    const list = document.getElementById('player-list-ul');
+    const li = document.createElement('li');
+    li.innerText = player.username;
+    li.id = `player-li-${player.id}`;
+    list.appendChild(li);
+  }
+
+  removePlayerFromTab(id) {
+    const li = document.getElementById(`player-li-${id}`);
+    if (li) {
+      li.remove();
+    }
   }
 
   updateDebugInfo() {

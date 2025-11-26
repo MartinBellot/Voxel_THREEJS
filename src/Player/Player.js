@@ -43,6 +43,8 @@ export class Player {
     
     // Position initiale
     this.camera.position.set(0, 80, 0); // Plus haut pour éviter de spawner dans le sol
+    
+    this.lastNetworkUpdate = 0;
   }
 
   setupHighlight() {
@@ -208,7 +210,15 @@ export class Player {
   breakBlock() {
     if (this.highlightMesh.visible) {
       const position = this.highlightMesh.position;
-      this.game.world.setBlock(Math.floor(position.x), Math.floor(position.y), Math.floor(position.z), BlockType.AIR);
+      const x = Math.floor(position.x);
+      const y = Math.floor(position.y);
+      const z = Math.floor(position.z);
+      
+      this.game.world.setBlock(x, y, z, BlockType.AIR);
+      
+      if (this.game.networkManager && this.game.networkManager.connected) {
+          this.game.networkManager.sendBlockUpdate(x, y, z, BlockType.AIR);
+      }
     }
   }
 
@@ -260,6 +270,11 @@ export class Player {
         const blockType = this.inventory.getSelectedBlockType(ItemDefinitions);
         if (blockType) {
           this.game.world.setBlock(x, y, z, blockType);
+          
+          if (this.game.networkManager && this.game.networkManager.connected) {
+              this.game.networkManager.sendBlockUpdate(x, y, z, blockType);
+          }
+          
           // Optional: Consume item in survival mode
           // this.inventory.removeItem(this.inventory.selectedSlot, 1);
           // this.inventoryUI.updateHotbar();
@@ -358,6 +373,27 @@ export class Player {
 
       // Mise à jour physique
       this.physics.update(delta);
+      
+      // Network Update (20 times per second)
+      const now = performance.now();
+      if (now - this.lastNetworkUpdate > 50) {
+          this.lastNetworkUpdate = now;
+          if (this.game.networkManager && this.game.networkManager.connected) {
+              this.game.networkManager.send({
+                  type: 'update',
+                  position: {
+                      x: this.camera.position.x,
+                      y: this.camera.position.y,
+                      z: this.camera.position.z
+                  },
+                  rotation: {
+                      x: this.camera.rotation.x,
+                      y: this.camera.rotation.y,
+                      z: this.camera.rotation.z
+                  }
+              });
+          }
+      }
     }
   }
 }
