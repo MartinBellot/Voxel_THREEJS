@@ -3,6 +3,7 @@ import { World } from './World/World.js';
 import { Player } from './Player/Player.js';
 import { Clouds } from './World/Clouds.js';
 import { Console } from './Console.js';
+import { TextureManager } from './Utils/TextureManager.js';
 
 export class Game {
   constructor() {
@@ -18,7 +19,7 @@ export class Game {
 
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(1); // Performance optimization: use 1 instead of devicePixelRatio
     this.renderer.shadowMap.enabled = true;
 
     this.clock = new THREE.Clock();
@@ -29,30 +30,150 @@ export class Game {
     this.time = 6000; // 0-24000, 6000 is noon
     this.timeSpeed = 10; // Speed of time
 
+    this.textureManager = new TextureManager(this);
+    this.textureManager.loadTextures().then(() => {
+      if (this.world) {
+        this.world.updateChunksMesh();
+      }
+    });
+
     this.world = new World(this);
     this.player = new Player(this);
     this.clouds = new Clouds(this);
     this.console = new Console(this);
 
     this.setupLights();
+    this.setupCelestialBodies();
     this.setupEvents();
     
     this.animate();
   }
 
   setupLights() {
-    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     this.scene.add(this.ambientLight);
 
-    this.sunLight = new THREE.DirectionalLight(0xffffff, 1);
+    this.sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
     this.sunLight.position.set(10, 20, 10);
     this.sunLight.castShadow = true;
-    this.sunLight.shadow.mapSize.width = 2048;
-    this.sunLight.shadow.mapSize.height = 2048;
+    this.sunLight.shadow.mapSize.width = 1024; // Optimized shadow map size
+    this.sunLight.shadow.mapSize.height = 1024;
     this.sunLight.shadow.camera.near = 0.1;
-    this.sunLight.shadow.camera.far = 50;
-    this.sunLight.shadow.bias = -0.001;
+    this.sunLight.shadow.camera.far = 150; // Optimized shadow distance
+    this.sunLight.shadow.camera.left = -80; // Tighter shadow frustum
+    this.sunLight.shadow.camera.right = 80;
+    this.sunLight.shadow.camera.top = 80;
+    this.sunLight.shadow.camera.bottom = -80;
+    this.sunLight.shadow.bias = -0.0005;
     this.scene.add(this.sunLight);
+
+    this.moonLight = new THREE.DirectionalLight(0x6666ff, 0.4);
+    this.moonLight.position.set(-10, -20, -10);
+    this.moonLight.castShadow = true;
+    this.moonLight.shadow.mapSize.width = 512; // Lower resolution for moon shadows
+    this.moonLight.shadow.mapSize.height = 512;
+    this.moonLight.shadow.camera.near = 0.1;
+    this.moonLight.shadow.camera.far = 150;
+    this.moonLight.shadow.camera.left = -80;
+    this.moonLight.shadow.camera.right = 80;
+    this.moonLight.shadow.camera.top = 80;
+    this.moonLight.shadow.camera.bottom = -80;
+    this.moonLight.shadow.bias = -0.0005;
+    this.scene.add(this.moonLight);
+  }
+
+  setupCelestialBodies() {
+    const textureLoader = new THREE.TextureLoader();
+
+    // Sun
+    const sunTexture = textureLoader.load('assets/textures/environment/sun.png');
+    sunTexture.magFilter = THREE.NearestFilter;
+    sunTexture.minFilter = THREE.NearestFilter;
+    
+    const sunGeometry = new THREE.PlaneGeometry(60, 60);
+    const sunMaterial = new THREE.MeshBasicMaterial({ 
+        map: sunTexture, 
+        transparent: true,
+        side: THREE.DoubleSide,
+        alphaTest: 0.1,
+        fog: false
+    });
+    this.sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
+    this.scene.add(this.sunMesh);
+
+    // Moon
+    this.moonTexture = textureLoader.load('assets/textures/environment/moon_phases.png');
+    this.moonTexture.magFilter = THREE.NearestFilter;
+    this.moonTexture.minFilter = THREE.NearestFilter;
+    this.moonTexture.wrapS = THREE.RepeatWrapping;
+    this.moonTexture.wrapT = THREE.RepeatWrapping;
+    
+    // 4 columns, 2 rows
+    this.moonTexture.repeat.set(0.25, 0.5);
+    
+    const moonGeometry = new THREE.PlaneGeometry(50, 50);
+    const moonMaterial = new THREE.MeshBasicMaterial({ 
+        map: this.moonTexture, 
+        transparent: true,
+        side: THREE.DoubleSide,
+        alphaTest: 0.1,
+        fog: false
+    });
+    this.moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
+    this.scene.add(this.moonMesh);
+    
+    this.currentMoonPhase = 0;
+    this.updateMoonPhase();
+  }
+
+  updateMoonPhase() {
+      // 8 phases total (4 cols * 2 rows)
+      const col = this.currentMoonPhase % 4;
+      const row = Math.floor(this.currentMoonPhase / 4);
+      
+      // UV offset
+      // In Three.js UVs, (0,0) is bottom-left.
+      // If texture is 4x2:
+      // Row 0 is bottom, Row 1 is top.
+      // We want to read from top-left usually?
+      // Let's assume standard grid:
+      // 0 1 2 3 (Top row)
+      // 4 5 6 7 (Bottom row)
+      
+      // If row 0 is top in image, that corresponds to V offset 0.5
+      // If row 1 is bottom in image, that corresponds to V offset 0.0
+      
+      // Let's try:
+      // Row 0 (Top): V = 0.5
+      // Row 1 (Bottom): V = 0.0
+      
+      this.moonTexture.offset.x = col * 0.25;
+      this.moonTexture.offset.y = (1 - row - 1) * 0.5; // 1 - 0 - 1 = 0? No.
+      
+      // If row=0 (top), we want y=0.5
+      // If row=1 (bottom), we want y=0.0
+      this.moonTexture.offset.y = (1 - row) * 0.5 - 0.5; 
+      // Wait, repeat is 0.5.
+      // Range is [offset, offset + repeat]
+      // If offset=0, range [0, 0.5] -> Bottom half
+      // If offset=0.5, range [0.5, 1.0] -> Top half
+      
+      // So if row 0 is top: offset.y = 0.5
+      // If row 1 is bottom: offset.y = 0.0
+      this.moonTexture.offset.y = (1 - row) * 0.5 - 0.5; 
+      // row 0 -> 0.5 - 0.5 = 0.0 (Bottom?)
+      
+      // Let's assume row 0 is top.
+      // We want V range [0.5, 1.0]
+      // offset.y should be 0.5
+      
+      // row 1 is bottom.
+      // We want V range [0.0, 0.5]
+      // offset.y should be 0.0
+      
+      this.moonTexture.offset.y = (1 - row - 1) * 0.5 + 0.5; 
+      // row 0: (0)*0.5 + 0.5 = 0.5. Correct.
+      // row 1: (-1)*0.5 + 0.5 = 0.0. Correct.
   }
 
   setupEvents() {
@@ -86,60 +207,117 @@ export class Game {
   }
 
   updateDayNightCycle(delta) {
+    const oldTime = this.time;
     this.time += this.timeSpeed * delta * 10; // Speed up a bit
-    if (this.time >= 24000) this.time = 0;
+    
+    if (this.time >= 24000) {
+        this.time = 0;
+        // New Day - Update Moon Phase
+        if (this.moonTexture) {
+            this.currentMoonPhase = (this.currentMoonPhase + 1) % 8;
+            this.updateMoonPhase();
+        }
+    }
 
-    // 6000 = Noon (Top), 18000 = Midnight (Bottom)
-    // Angle: 0 at 6000? No.
-    // Let's say 0 is sunrise (0 time).
-    // Minecraft: 0 is sunrise, 6000 noon, 12000 sunset, 18000 midnight.
+    const theta = (this.time / 24000) * Math.PI * 2;
+
+    const playerPos = this.player.camera.position;
+    const radius = 500;
     
-    const angle = ((this.time - 6000) / 24000) * Math.PI * 2; 
-    // At 6000: (0) -> angle 0 -> cos(0)=1 (x=R), sin(0)=0 (y=0). Wait.
-    // We want noon (6000) to be at Y = max.
-    // sin(PI/2) = 1.
-    // So we want angle to be PI/2 at 6000.
-    // ((6000 - 6000) / 24000) * 2PI = 0.
-    // Let's just map directly.
+    const sunX = -Math.cos(theta) * radius;
+    const sunY = Math.sin(theta) * radius;
+    const sunZ = 0; // Keep it simple for now, or add slight tilt
+
+    // Update Sun
+    this.sunLight.position.set(playerPos.x + sunX, playerPos.y + sunY, playerPos.z + sunZ);
+    this.sunLight.target.position.copy(playerPos);
+    this.sunLight.target.updateMatrixWorld();
     
-    // 0 (Sunrise) -> X negative, Y 0
-    // 6000 (Noon) -> X 0, Y positive
-    // 12000 (Sunset) -> X positive, Y 0
-    // 18000 (Midnight) -> X 0, Y negative
+    if (this.sunMesh) {
+        this.sunMesh.position.set(playerPos.x + sunX, playerPos.y + sunY, playerPos.z + sunZ);
+        this.sunMesh.lookAt(playerPos);
+    }
+
+    // Update Moon (Opposite to Sun)
+    const moonX = -sunX;
+    const moonY = -sunY;
+    const moonZ = -sunZ;
     
-    const theta = (this.time / 24000) * Math.PI * 2; // 0 to 2PI
-    // We want 0 -> -X
-    // cos(theta) starts at 1.
-    // Let's use:
-    // x = -cos(theta * 2PI) ? No.
-    
-    const sunX = -Math.cos(theta) * 100;
-    const sunY = Math.sin(theta) * 100;
-    
-    this.sunLight.position.set(sunX, sunY, 0);
+    this.moonLight.position.set(playerPos.x + moonX, playerPos.y + moonY, playerPos.z + moonZ);
+    this.moonLight.target.position.copy(playerPos);
+    this.moonLight.target.updateMatrixWorld();
+
+    if (this.moonMesh) {
+        this.moonMesh.position.set(playerPos.x + moonX, playerPos.y + moonY, playerPos.z + moonZ);
+        this.moonMesh.lookAt(playerPos);
+    }
     
     const sunHeight = sunY;
+    const transitionHeight = 50; // Longer transition
+
+    let t = 0; // 0 = Night, 1 = Day
     
-    if (sunHeight > 20) {
-        this.scene.background.setHex(0x87CEEB);
-        this.scene.fog.color.setHex(0x87CEEB);
-        this.ambientLight.intensity = 0.7;
-        this.sunLight.intensity = 1;
-    } else if (sunHeight < -20) {
-        this.scene.background.setHex(0x050510);
-        this.scene.fog.color.setHex(0x050510);
-        this.ambientLight.intensity = 0.1;
-        this.sunLight.intensity = 0;
+    if (sunHeight > transitionHeight) {
+        t = 1;
+    } else if (sunHeight < -transitionHeight) {
+        t = 0;
     } else {
-        // Transition (-20 to 20)
-        const t = (sunHeight + 20) / 40; // 0 to 1
-        const dayColor = new THREE.Color(0x87CEEB);
-        const nightColor = new THREE.Color(0x050510);
+        t = (sunHeight + transitionHeight) / (transitionHeight * 2);
+    }
+
+    // Dynamic Sky Color
+    const dayColor = new THREE.Color(0x87CEEB);
+    const sunsetColor = new THREE.Color(0xFD5E53);
+    const nightColor = new THREE.Color(0x050510);
+    
+    let skyColor = new THREE.Color();
+    
+    if (t < 0.2) {
+        // Night
+        skyColor.copy(nightColor);
+    } else if (t < 0.4) {
+        // Sunrise / Sunset
+        const localT = (t - 0.2) / 0.2;
+        skyColor.copy(nightColor).lerp(sunsetColor, localT);
+    } else if (t < 0.6) {
+        // Sunset to Day
+        const localT = (t - 0.4) / 0.2;
+        skyColor.copy(sunsetColor).lerp(dayColor, localT);
+    } else {
+        // Day
+        skyColor.copy(dayColor);
+    }
+    
+    this.scene.background.copy(skyColor);
+    this.scene.fog.color.copy(skyColor);
+    
+    // Dynamic Light Intensity & Color
+    this.sunLight.intensity = Math.max(0, t * 1.2);
+    
+    // Warmer daylight (Hue 0.1 is Golden Yellow, Saturation 0.7 for warmth)
+    if (t < 0.2) {
+        this.sunLight.color.setHSL(0.05, 0.8, 0.6); // Dawn/Dusk - Orange/Red
+    } else {
+        // Warm golden daylight
+        this.sunLight.color.setHSL(0.1, 0.7, 0.8); 
+    }
+    
+    this.moonLight.intensity = Math.max(0, (1 - t) * 0.4);
+    
+    this.ambientLight.intensity = 0.1 + (0.5 * t);
+    this.ambientLight.color.copy(skyColor).lerp(new THREE.Color(0xffffff), 0.5);
+
+    if (this.clouds && this.clouds.mesh) {
+        const dayCloudColor = new THREE.Color(0xffffff);
+        const sunsetCloudColor = new THREE.Color(0xFFD700);
+        const nightCloudColor = new THREE.Color(0x1a1a2e);
         
-        this.scene.background.copy(nightColor).lerp(dayColor, t);
-        this.scene.fog.color.copy(nightColor).lerp(dayColor, t);
-        this.ambientLight.intensity = 0.1 + (0.6 * t);
-        this.sunLight.intensity = t;
+        let cloudColor = new THREE.Color();
+        if (t < 0.3) cloudColor.copy(nightCloudColor);
+        else if (t < 0.5) cloudColor.copy(nightCloudColor).lerp(sunsetCloudColor, (t - 0.3) / 0.2);
+        else cloudColor.copy(sunsetCloudColor).lerp(dayCloudColor, (t - 0.5) / 0.5);
+
+        this.clouds.mesh.material.color.copy(cloudColor);
     }
   }
 

@@ -30,7 +30,7 @@ export class World {
 
   getBiome(x, z) {
     // Echelle très large pour les biomes (500-1000 blocs)
-    const value = this.biomeNoise(x * 0.002, z * 0.002);
+    const value = this.biomeNoise(x * 0.001, z * 0.001);
     if (value < -0.2) return 'Ocean';
     if (value < -0.1) return 'Beach';
     if (value < 0.05) return 'Desert';
@@ -38,8 +38,35 @@ export class World {
     return 'Mountain';
   }
 
+  getBiomeData(x, z) {
+    const value = this.biomeNoise(x * 0.001, z * 0.001);
+    // Map noise value (-1 to 1) to temp/humidity
+    
+    let temperature = 0.5;
+    let humidity = 0.5;
+
+    if (value < -0.2) { // Ocean
+        temperature = 0.5;
+        humidity = 0.9;
+    } else if (value < -0.1) { // Beach
+        temperature = 0.8;
+        humidity = 0.4;
+    } else if (value < 0.05) { // Desert
+        temperature = 2.0; // Hot
+        humidity = 0.0; // Dry
+    } else if (value < 0.5) { // Pine Forest
+        temperature = 0.3; // Cold
+        humidity = 0.8; // Wet
+    } else { // Mountain
+        temperature = 0.2; // Very Cold
+        humidity = 0.3; // Dry-ish
+    }
+    
+    return { temperature, humidity };
+  }
+
   getHeight(x, z) {
-    const noise = this.biomeNoise(x * 0.002, z * 0.002);
+    const noise = this.biomeNoise(x * 0.001, z * 0.001);
     const localNoise = this.noise2D(x * 0.02, z * 0.02); // Detail
     
     let height = this.seaLevel; // Base sea level (30)
@@ -86,6 +113,12 @@ export class World {
         this.generateChunk(x, z);
       }
     }
+  }
+
+  updateChunksMesh() {
+    this.chunks.forEach(chunk => {
+      chunk.updateMesh();
+    });
   }
 
   update(delta) {
@@ -143,18 +176,23 @@ export class World {
     }
     
     // Update LODs and Unload
+    const renderDistSq = this.renderDistance * this.renderDistance;
+    const farRenderDistSq = (this.farRenderDistance + 2) * (this.farRenderDistance + 2);
+
     for (const [key, chunk] of this.chunks) {
-      const dist = Math.sqrt((chunk.x - chunkX)**2 + (chunk.z - chunkZ)**2);
+      const dx = chunk.x - chunkX;
+      const dz = chunk.z - chunkZ;
+      const distSq = dx * dx + dz * dz;
       
       // Update LOD
-      if (dist > this.renderDistance) {
+      if (distSq > renderDistSq) {
           chunk.setLOD(1);
       } else {
           chunk.setLOD(0);
       }
 
       // Unload if too far
-      if (dist > this.farRenderDistance + 2) {
+      if (distSq > farRenderDistSq) {
         // console.log(`Removing chunk ${chunk.x}, ${chunk.z} (dist: ${dist})`);
         if (chunk.meshes) { 
              Object.values(chunk.meshes).forEach(mesh => {

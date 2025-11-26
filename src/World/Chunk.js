@@ -1,14 +1,6 @@
 import * as THREE from 'three';
 import { BlockType, BlockDefinitions, BlockModels } from './Block.js';
 
-const Geometries = {
-  [BlockModels.CUBE]: new THREE.BoxGeometry(1, 1, 1),
-  [BlockModels.TORCH]: new THREE.BoxGeometry(0.15, 0.6, 0.15)
-};
-
-// Adjust Torch geometry to sit on the ground
-Geometries[BlockModels.TORCH].translate(0, -0.2, 0);
-
 export class Chunk {
   constructor(game, world, x, z) {
     this.game = game;
@@ -18,7 +10,7 @@ export class Chunk {
     this.size = 16;
     this.height = this.world.chunkHeight;
     this.data = []; // Stocke les IDs des blocs
-    this.meshes = {}; // Map of model -> InstancedMesh
+    this.meshes = {}; // Map of model -> Mesh
     this.lod = 0; // 0 = High, 1 = Low
     
     this.generateData();
@@ -26,66 +18,42 @@ export class Chunk {
   }
 
   isBlockOpaque(id) {
-    if (id === BlockType.AIR || id === BlockType.WATER || id === BlockType.TORCH || id === BlockType.CACTUS || id === BlockType.LEAVES || id === BlockType.PINE_LEAVES) return false;
+    if (id === BlockType.AIR || id === BlockType.WATER || id === BlockType.TORCH || id === BlockType.CACTUS || id === BlockType.LEAVES || id === BlockType.PINE_LEAVES || id === BlockType.MUSHROOM_STEM || id === BlockType.MUSHROOM_CAP || id === BlockType.SAPLING || id === BlockType.FLOWER) return false;
     return true;
   }
 
-  isBlockObscured(x, y, z) {
-    // Right
-    if (x + 1 < this.size) {
-        if (!this.isBlockOpaque(this.data[(x + 1) + this.size * (y + this.height * z)])) return false;
-    } else {
-        if (!this.isBlockOpaque(this.world.getBlock(this.x * this.size + x + 1, y, this.z * this.size + z))) return false;
-    }
-    
-    // Left
-    if (x - 1 >= 0) {
-        if (!this.isBlockOpaque(this.data[(x - 1) + this.size * (y + this.height * z)])) return false;
-    } else {
-        if (!this.isBlockOpaque(this.world.getBlock(this.x * this.size + x - 1, y, this.z * this.size + z))) return false;
-    }
-    
-    // Up
-    if (y + 1 < this.height) {
-        if (!this.isBlockOpaque(this.data[x + this.size * ((y + 1) + this.height * z)])) return false;
-    } else {
-        // Check world height limit or assume air above
-        if (y + 1 >= this.world.chunkHeight) return false; // Always visible from top
-        if (!this.isBlockOpaque(this.world.getBlock(this.x * this.size + x, y + 1, this.z * this.size + z))) return false;
-    }
-    
-    // Down
-    if (y - 1 >= 0) {
-        if (!this.isBlockOpaque(this.data[x + this.size * ((y - 1) + this.height * z)])) return false;
-    } else {
-        if (y - 1 < 0) return true; // Bottom of world is obscured (or void)
-        if (!this.isBlockOpaque(this.world.getBlock(this.x * this.size + x, y - 1, this.z * this.size + z))) return false;
-    }
-    
-    // Front
-    if (z + 1 < this.size) {
-        if (!this.isBlockOpaque(this.data[x + this.size * (y + this.height * (z + 1))])) return false;
-    } else {
-        if (!this.isBlockOpaque(this.world.getBlock(this.x * this.size + x, y, this.z * this.size + z + 1))) return false;
-    }
-    
-    // Back
-    if (z - 1 >= 0) {
-        if (!this.isBlockOpaque(this.data[x + this.size * (y + this.height * (z - 1))])) return false;
-    } else {
-        if (!this.isBlockOpaque(this.world.getBlock(this.x * this.size + x, y, this.z * this.size + z - 1))) return false;
+  // Helper to check if a face should be drawn
+  shouldDrawFace(x, y, z, neighborId) {
+      if (neighborId === undefined) return true; // Edge of chunk (for now draw it, or check world)
+      // If neighbor is opaque, don't draw
+      if (this.isBlockOpaque(neighborId)) return false;
+      return true;
+  }
+
+  getBlock(x, y, z) {
+    // Check height limits first - World doesn't handle vertical chunks
+    if (y < 0 || y >= this.height) {
+        return BlockType.AIR;
     }
 
-    return true;
+    // Check horizontal limits
+    if (x < 0 || x >= this.size || z < 0 || z >= this.size) {
+        // Check world for neighbor chunks
+        return this.world.getBlock(this.x * this.size + x, y, this.z * this.size + z);
+    }
+    
+    return this.data[x + this.size * (y + this.height * z)];
   }
 
   setLOD(level) {
       if (this.lod === level) return;
       this.lod = level;
-      this.updateMesh();
+      // We could simplify the mesh for LOD 1, but for now just keep it.
+      // The merged mesh is already efficient.
   }
 
   generateData() {
+    // ...existing code...
     // Initialise le tableau de données
     this.data = new Int8Array(this.size * this.height * this.size);
     
@@ -109,8 +77,8 @@ export class Chunk {
 
         if (biome === 'Pine Forest') {
             hasTree = treeNoise > 0.4 && pseudoRandom > 0.85; // Plus dense
-        } else if (biome === 'Desert') {
-            hasCactus = treeNoise > 0.5 && pseudoRandom > 0.95; // Rare
+        } else if (biome === 'Desert') { //CACTUS EXTREMEMENTS RARES:
+            hasCactus = treeNoise > 0.5 && pseudoRandom > 0.99;
         }
 
         for (let y = 0; y < this.height; y++) {
@@ -139,7 +107,7 @@ export class Chunk {
                    }
                } else if (biome === 'Mountain') {
                    if (y === surfaceHeight - 1) {
-                       if (y > 45) {
+                       if (y > 100) {
                            this.data[index] = BlockType.SNOW;
                        } else {
                            this.data[index] = BlockType.STONE;
@@ -147,7 +115,12 @@ export class Chunk {
                    } else if (y > surfaceHeight - 4) {
                        this.data[index] = BlockType.STONE;
                    } else {
-                       this.data[index] = BlockType.STONE;
+                       const coalNoise = this.world.noise3D(worldX * 0.1, y * 0.1, worldZ * 0.1);
+                       if (coalNoise > 0.8) {
+                           this.data[index] = BlockType.COAL_ORE;
+                       } else {
+                           this.data[index] = BlockType.STONE;
+                       }
                    }
                } else {
                    if (y === surfaceHeight - 1) {
@@ -155,7 +128,12 @@ export class Chunk {
                    } else if (y > surfaceHeight - 4) {
                      this.data[index] = BlockType.DIRT;
                    } else {
-                     this.data[index] = BlockType.STONE;
+                     const coalNoise = this.world.noise3D(worldX * 0.1, y * 0.1, worldZ * 0.1);
+                     if (coalNoise > 0.8) {
+                         this.data[index] = BlockType.COAL_ORE;
+                     } else {
+                         this.data[index] = BlockType.STONE;
+                     }
                    }
                }
              }
@@ -164,7 +142,7 @@ export class Chunk {
             if (hasTree && y >= surfaceHeight && y < surfaceHeight + 7) {
                 // Tronc de sapin (plus haut)
                 if (y < surfaceHeight + 6) {
-                    this.data[index] = BlockType.LOG;
+                    this.data[index] = BlockType.SPRUCE_LOG;
                 } else {
                     this.data[index] = BlockType.PINE_LEAVES; // Sommet
                 }
@@ -186,6 +164,7 @@ export class Chunk {
     this.decorateChunk();
   }
 
+  // ...existing code...
   decorateChunk() {
     for (let x = 0; x < this.size; x++) {
         for (let z = 0; z < this.size; z++) {
@@ -263,13 +242,6 @@ export class Chunk {
     return x + this.size * (y + this.height * z);
   }
 
-  getBlock(x, y, z) {
-    if (x < 0 || x >= this.size || y < 0 || y >= this.height || z < 0 || z >= this.size) {
-      return BlockType.AIR; // Hors du chunk
-    }
-    return this.data[this.getBlockIndex(x, y, z)];
-  }
-
   setBlock(x, y, z, type) {
     if (x < 0 || x >= this.size || y < 0 || y >= this.height || z < 0 || z >= this.size) {
       return;
@@ -282,12 +254,14 @@ export class Chunk {
     // Dispose existing meshes
     Object.values(this.meshes).forEach(mesh => {
       this.game.scene.remove(mesh);
+      mesh.geometry.dispose();
       mesh.material.dispose();
     });
     this.meshes = {};
 
     if (this.waterMesh) {
       this.game.scene.remove(this.waterMesh);
+      this.waterMesh.geometry.dispose();
       this.waterMesh.material.dispose();
       this.waterMesh = null;
     }
@@ -295,207 +269,386 @@ export class Chunk {
   }
 
   generateMesh() {
-    const counts = {};
-    let waterCount = 0;
+    const positions = [];
+    const normals = [];
+    const colors = [];
+    const uvs = [];
     
-    // Pre-calculate visible blocks to avoid doing it twice (count + fill)
-    // Or just do it in the loops.
-    // For LOD 1, we only want the top blocks.
-    
-    const visibleBlocks = []; // {x, y, z, blockId, model}
+    const waterPositions = [];
+    const waterNormals = [];
+    const waterColors = [];
+    const waterUvs = [];
 
-    if (this.lod === 1) {
-        // Low Detail: All visible blocks, single mesh
-        for (let x = 0; x < this.size; x++) {
-            for (let y = 0; y < this.height; y++) {
-                for (let z = 0; z < this.size; z++) {
-                    const blockId = this.data[this.getBlockIndex(x, y, z)];
-                    if (blockId === BlockType.AIR) continue;
-
-                    if (blockId === BlockType.WATER) {
-                        if (this.isBlockObscured(x, y, z)) continue;
-                        waterCount++;
-                    } else {
-                        if (this.isBlockObscured(x, y, z)) continue;
-                        
-                        const def = BlockDefinitions[blockId];
-                        const model = def.model || BlockModels.CUBE;
-                        visibleBlocks.push({x, y, z, blockId, model});
-                    }
-                }
-            }
-        }
-    } else {
-        // High Detail: All visible blocks
-        for (let x = 0; x < this.size; x++) {
-            for (let y = 0; y < this.height; y++) {
-                for (let z = 0; z < this.size; z++) {
-                    const blockId = this.data[this.getBlockIndex(x, y, z)];
-                    if (blockId === BlockType.AIR) continue;
-
-                    if (blockId === BlockType.WATER) {
-                        // Water is special, handled separately usually, but here we count it
-                        // Water is usually not culled by itself but we can check if surrounded by water
-                        // For now, keep water logic simple or apply culling too?
-                        // Let's apply culling to water too (if surrounded by water/solid, don't render)
-                        // But water needs to see through water surface... 
-                        // Simple check: if block above is water, don't render top face? 
-                        // For InstancedMesh (cubes), we render the whole cube.
-                        // If surrounded by solids/water, we can hide it.
-                        if (this.isBlockObscured(x, y, z)) continue;
-                        waterCount++;
-                    } else {
-                        if (this.isBlockObscured(x, y, z)) continue;
-                        
-                        const def = BlockDefinitions[blockId];
-                        const model = def.model || BlockModels.CUBE;
-                        visibleBlocks.push({x, y, z, blockId, model});
-                        counts[model] = (counts[model] || 0) + 1;
-                    }
-                }
-            }
-        }
-    }
-
-    const dummy = new THREE.Object3D();
     const color = new THREE.Color();
+    const textureManager = this.game.textureManager;
 
-        // Create Meshes for Solids
-    if (this.lod === 1) {
-        // LOD 1: Single InstancedMesh for everything (using colors)
-        const count = visibleBlocks.length;
-        if (count > 0) {
-            const geometry = Geometries[BlockModels.CUBE];
-            const material = new THREE.MeshLambertMaterial({ color: 0xffffff }); // White, tinted by instanceColor
-            
-            const mesh = new THREE.InstancedMesh(geometry, material, count);
-            mesh.castShadow = false; // Disable shadow casting for far chunks to save perf
-            mesh.receiveShadow = false;
-            mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-            mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3);
-            mesh.position.set(this.x * this.size, 0, this.z * this.size);
-            mesh.frustumCulled = true; // Enable culling for far chunks
+    for (let x = 0; x < this.size; x++) {
+      for (let y = 0; y < this.height; y++) {
+        for (let z = 0; z < this.size; z++) {
+          const blockId = this.data[this.getBlockIndex(x, y, z)];
+          if (blockId === BlockType.AIR) continue;
 
-            this.meshes['LOD1'] = mesh;
-            this.game.scene.add(mesh);
-            
-            // Fill
-            let index = 0;
-            for (const block of visibleBlocks) {
-                const {x, y, z, blockId} = block;
-                
-                dummy.position.set(x + 0.5, y + 0.5, z + 0.5);
-                dummy.updateMatrix();
-
-                const def = BlockDefinitions[blockId];
-                color.setHex(def.color);
-
-                mesh.setMatrixAt(index, dummy.matrix);
-                mesh.setColorAt(index, color);
-                index++;
-            }
-        }
-    } else {
-        // LOD 0: High Detail (Multiple InstancedMeshes with textures/models)
-        for (const [model, count] of Object.entries(counts)) {
-          if (count === 0) continue;
-
-          const geometry = Geometries[model] || Geometries[BlockModels.CUBE];
-          let material;
+          const def = BlockDefinitions[blockId];
+          color.setHex(def.color);
           
-          if (model === BlockModels.TORCH) {
-            material = new THREE.MeshLambertMaterial({ 
-              color: 0xffffff,
-              emissive: 0xFFD700,
-              emissiveIntensity: 0.5
-            });
-          } else {
-            material = new THREE.MeshLambertMaterial({ color: 0xffffff });
+          // Use white color if texture is available to avoid tinting
+          if (def.textures && textureManager && textureManager.atlasTexture) {
+             color.setHex(0xFFFFFF);
           }
           
-          const mesh = new THREE.InstancedMesh(geometry, material, count);
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-          mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-          mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3);
-          mesh.position.set(this.x * this.size, 0, this.z * this.size);
-          mesh.frustumCulled = false;
-
-          this.meshes[model] = mesh;
-          this.game.scene.add(mesh);
+          const isWater = blockId === BlockType.WATER;
+          const isTorch = blockId === BlockType.TORCH;
+          const isCactus = blockId === BlockType.CACTUS;
+          
+          let tintColor = null;
+          if (def.textures && textureManager && textureManager.atlasTexture) {
+             if (blockId === BlockType.GRASS) {
+                 const worldX = x + this.x * this.size;
+                 const worldZ = z + this.z * this.size;
+                 const biomeData = this.world.getBiomeData(worldX, worldZ);
+                 tintColor = textureManager.getBiomeColor('grass', biomeData.temperature, biomeData.humidity);
+             } else if (blockId === BlockType.LEAVES || blockId === BlockType.PINE_LEAVES) {
+                 const worldX = x + this.x * this.size;
+                 const worldZ = z + this.z * this.size;
+                 const biomeData = this.world.getBiomeData(worldX, worldZ);
+                 tintColor = textureManager.getBiomeColor('foliage', biomeData.temperature, biomeData.humidity);
+             }
+          }
+          
+          // Geometry generation for Cube
+          if (!isTorch && !isCactus) {
+              // Check 6 faces
+              // Right (x+1)
+              let neighbor = this.getBlock(x + 1, y, z);
+              if (!(isWater && neighbor === BlockType.WATER) && this.shouldDrawFace(x + 1, y, z, neighbor)) {
+                  this.addFace(x, y, z, 0, isWater ? waterPositions : positions, isWater ? waterNormals : normals, isWater ? waterColors : colors, isWater ? waterUvs : uvs, color, blockId, tintColor);
+              }
+              // Left (x-1)
+              neighbor = this.getBlock(x - 1, y, z);
+              if (!(isWater && neighbor === BlockType.WATER) && this.shouldDrawFace(x - 1, y, z, neighbor)) {
+                  this.addFace(x, y, z, 1, isWater ? waterPositions : positions, isWater ? waterNormals : normals, isWater ? waterColors : colors, isWater ? waterUvs : uvs, color, blockId, tintColor);
+              }
+              // Top (y+1)
+              neighbor = this.getBlock(x, y + 1, z);
+              if (!(isWater && neighbor === BlockType.WATER) && this.shouldDrawFace(x, y + 1, z, neighbor)) {
+                  this.addFace(x, y, z, 2, isWater ? waterPositions : positions, isWater ? waterNormals : normals, isWater ? waterColors : colors, isWater ? waterUvs : uvs, color, blockId, tintColor);
+              }
+              // Bottom (y-1)
+              neighbor = this.getBlock(x, y - 1, z);
+              if (!(isWater && neighbor === BlockType.WATER) && this.shouldDrawFace(x, y - 1, z, neighbor)) {
+                  this.addFace(x, y, z, 3, isWater ? waterPositions : positions, isWater ? waterNormals : normals, isWater ? waterColors : colors, isWater ? waterUvs : uvs, color, blockId, tintColor);
+              }
+              // Front (z+1)
+              neighbor = this.getBlock(x, y, z + 1);
+              if (!(isWater && neighbor === BlockType.WATER) && this.shouldDrawFace(x, y, z + 1, neighbor)) {
+                  this.addFace(x, y, z, 4, isWater ? waterPositions : positions, isWater ? waterNormals : normals, isWater ? waterColors : colors, isWater ? waterUvs : uvs, color, blockId, tintColor);
+              }
+              // Back (z-1)
+              neighbor = this.getBlock(x, y, z - 1);
+              if (!(isWater && neighbor === BlockType.WATER) && this.shouldDrawFace(x, y, z - 1, neighbor)) {
+                  this.addFace(x, y, z, 5, isWater ? waterPositions : positions, isWater ? waterNormals : normals, isWater ? waterColors : colors, isWater ? waterUvs : uvs, color, blockId, tintColor);
+              }
+          } else if (isCactus) {
+              this.addCactus(x, y, z, positions, normals, colors, uvs, color, blockId);
+          } else {
+              // Torch Geometry (Simplified as a small box)
+              // Always draw torches for now, or check if obscured (unlikely)
+              this.addTorch(x, y, z, positions, normals, colors, uvs, color);
+          }
         }
-        
-        // Fill Meshes (LOD 0)
-        const indices = {}; 
-        for (const block of visibleBlocks) {
-            const {x, y, z, blockId, model} = block;
-            
-            dummy.position.set(x + 0.5, y + 0.5, z + 0.5);
-            dummy.updateMatrix();
-
-            const def = BlockDefinitions[blockId];
-            color.setHex(def.color);
-
-            const mesh = this.meshes[model];
-            const index = indices[model] || 0;
-            
-            mesh.setMatrixAt(index, dummy.matrix);
-            mesh.setColorAt(index, color);
-            
-            indices[model] = index + 1;
-        }
+      }
     }
 
-    // Create Water Mesh (Only for High Detail or if we want water in LOD)
-    // For LOD 1, we skipped water in the loop above (break on non-air). 
-    // If we want water in LOD 1, we need to handle it.
-    // Let's say LOD 1 doesn't render water separately for now to save draw calls, 
-    // OR we treat water as a block in visibleBlocks if it's the top block.
-    // In my LOD 1 loop: if (blockId !== BlockType.AIR && blockId !== BlockType.WATER)
-    // So water is ignored in LOD 1. Let's fix that if we want to see oceans.
-    // But waterMesh is separate.
-    
-    if (waterCount > 0) {
-        const geometry = Geometries[BlockModels.CUBE];
-        const waterMaterial = new THREE.MeshLambertMaterial({ 
-            color: 0xffffff, 
-            transparent: true, 
-            opacity: 0.6,
-            side: THREE.FrontSide
+    // Create Solid Mesh
+    if (positions.length > 0) {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+        
+        // Compute bounding sphere for culling
+        geometry.computeBoundingSphere();
+
+        const material = new THREE.MeshLambertMaterial({ 
+            vertexColors: true,
+            side: THREE.FrontSide, // Backface culling enabled by default
+            map: textureManager ? textureManager.atlasTexture : null,
+            transparent: true,
+            alphaTest: 0.1
         });
-        this.waterMesh = new THREE.InstancedMesh(geometry, waterMaterial, waterCount);
-        this.waterMesh.castShadow = false;
-        this.waterMesh.receiveShadow = true;
-        this.waterMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        this.waterMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(waterCount * 3), 3);
+        
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(this.x * this.size, 0, this.z * this.size);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        
+        this.meshes['terrain'] = mesh;
+        this.game.scene.add(mesh);
+    }
+
+    // Create Water Mesh
+    if (waterPositions.length > 0) {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(waterPositions, 3));
+        geometry.setAttribute('normal', new THREE.Float32BufferAttribute(waterNormals, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(waterColors, 3));
+        geometry.setAttribute('uv', new THREE.Float32BufferAttribute(waterUvs, 2));
+        
+        geometry.computeBoundingSphere();
+
+        const material = new THREE.MeshLambertMaterial({ 
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.6,
+            side: THREE.FrontSide,
+            map: textureManager ? textureManager.atlasTexture : null
+        });
+        
+        this.waterMesh = new THREE.Mesh(geometry, material);
         this.waterMesh.position.set(this.x * this.size, 0, this.z * this.size);
-        this.waterMesh.frustumCulled = false;
+        this.waterMesh.receiveShadow = true;
+        
         this.game.scene.add(this.waterMesh);
     }
+  }
 
-    // Fill Water
-    let waterIndex = 0;
-    if (waterCount > 0) {
-        for (let x = 0; x < this.size; x++) {
-            for (let y = 0; y < this.height; y++) {
-                for (let z = 0; z < this.size; z++) {
-                    const blockId = this.data[this.getBlockIndex(x, y, z)];
-                    if (blockId === BlockType.WATER) {
-                        if (this.isBlockObscured(x, y, z)) continue;
-                        
-                        dummy.position.set(x + 0.5, y + 0.5, z + 0.5);
-                        dummy.updateMatrix();
-                        
-                        const def = BlockDefinitions[blockId];
-                        color.setHex(def.color);
-                        
-                        this.waterMesh.setMatrixAt(waterIndex, dummy.matrix);
-                        this.waterMesh.setColorAt(waterIndex, color);
-                        waterIndex++;
-                    }
-                }
-            }
-        }
-    }
+  addFace(x, y, z, faceIndex, positions, normals, colors, uvs, color, blockId, tintColor, inset = 0) {
+      // Face data
+      // 0: Right, 1: Left, 2: Top, 3: Bottom, 4: Front, 5: Back
+      const corners = [
+          // Right (x+1)
+          [[1, 0, 1], [1, 1, 1], [1, 1, 0], [1, 0, 0]],
+          // Left (x-1)
+          [[0, 0, 0], [0, 1, 0], [0, 1, 1], [0, 0, 1]],
+          // Top (y+1)
+          [[0, 1, 1], [1, 1, 1], [1, 1, 0], [0, 1, 0]],
+          // Bottom (y-1)
+          [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]],
+          // Front (z+1)
+          [[0, 0, 1], [0, 1, 1], [1, 1, 1], [1, 0, 1]],
+          // Back (z-1)
+          [[1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 0, 0]]
+      ];
+      
+      const faceNormals = [
+          [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]
+      ];
+
+      let c = corners[faceIndex];
+      if (inset > 0) {
+          c = c.map(p => [...p]);
+          for (let i = 0; i < 4; i++) {
+              if (c[i][0] === 0) c[i][0] = inset;
+              else if (c[i][0] === 1) c[i][0] = 1 - inset;
+              
+              if (c[i][2] === 0) c[i][2] = inset;
+              else if (c[i][2] === 1) c[i][2] = 1 - inset;
+          }
+      }
+      const n = faceNormals[faceIndex];
+
+      // UV Calculation
+      const textureManager = this.game.textureManager;
+      let uMin = 0, uMax = 0, vMin = 0, vMax = 0;
+      
+      if (textureManager && textureManager.atlasTexture) {
+          const def = BlockDefinitions[blockId];
+          let textureName = null;
+          
+          if (def.textures) {
+              if (def.textures.all) textureName = def.textures.all;
+              else {
+                  if (faceIndex === 2) textureName = def.textures.top;
+                  else if (faceIndex === 3) textureName = def.textures.bottom;
+                  else textureName = def.textures.side;
+              }
+          }
+          
+          if (textureName) {
+              const uv = textureManager.getUVs(textureName);
+              if (uv) {
+                  uMin = uv.uMin;
+                  uMax = uv.uMax;
+                  vMin = uv.vMin;
+                  vMax = uv.vMax;
+
+                  // Adjust UVs if inset is present to prevent texture shrinking
+                  if (inset > 0) {
+                      const uRange = uMax - uMin;
+                      const vRange = vMax - vMin;
+
+                      if (faceIndex === 2 || faceIndex === 3) {
+                          // Top/Bottom: Inset both U and V
+                          uMin += inset * uRange;
+                          uMax -= inset * uRange;
+                          vMin += inset * vRange;
+                          vMax -= inset * vRange;
+                      } else {
+                          // Sides: Inset only U (width), keep V (height) full
+                          uMin += inset * uRange;
+                          uMax -= inset * uRange;
+                      }
+                  }
+              }
+          }
+      }
+
+      // Determine winding order based on face index
+      if (faceIndex === 2 || faceIndex === 3) {
+          // Original winding (0, 1, 2) and (0, 2, 3)
+          // Triangle 1
+          positions.push(x + c[0][0], y + c[0][1], z + c[0][2]);
+          positions.push(x + c[1][0], y + c[1][1], z + c[1][2]);
+          positions.push(x + c[2][0], y + c[2][1], z + c[2][2]);
+          
+          uvs.push(uMin, vMin);
+          uvs.push(uMin, vMax);
+          uvs.push(uMax, vMax);
+          
+          // Triangle 2
+          positions.push(x + c[0][0], y + c[0][1], z + c[0][2]);
+          positions.push(x + c[2][0], y + c[2][1], z + c[2][2]);
+          positions.push(x + c[3][0], y + c[3][1], z + c[3][2]);
+          
+          uvs.push(uMin, vMin);
+          uvs.push(uMax, vMax);
+          uvs.push(uMax, vMin);
+      } else {
+          // Swapped winding (0, 2, 1) and (0, 3, 2)
+          // Triangle 1
+          positions.push(x + c[0][0], y + c[0][1], z + c[0][2]);
+          positions.push(x + c[2][0], y + c[2][1], z + c[2][2]);
+          positions.push(x + c[1][0], y + c[1][1], z + c[1][2]);
+          
+          uvs.push(uMin, vMin);
+          uvs.push(uMax, vMax);
+          uvs.push(uMin, vMax);
+          
+          // Triangle 2
+          positions.push(x + c[0][0], y + c[0][1], z + c[0][2]);
+          positions.push(x + c[3][0], y + c[3][1], z + c[3][2]);
+          positions.push(x + c[2][0], y + c[2][1], z + c[2][2]);
+          
+          uvs.push(uMin, vMin);
+          uvs.push(uMax, vMin);
+          uvs.push(uMax, vMax);
+      }
+
+      let r = color.r;
+      let g = color.g;
+      let b = color.b;
+
+      if (tintColor) {
+          if (blockId === BlockType.GRASS) {
+              if (faceIndex === 2) { // Top
+                  r = tintColor.r;
+                  g = tintColor.g;
+                  b = tintColor.b;
+              }
+          } else {
+              // Leaves
+              r = tintColor.r;
+              g = tintColor.g;
+              b = tintColor.b;
+          }
+      }
+
+      for (let i = 0; i < 6; i++) {
+          normals.push(n[0], n[1], n[2]);
+          colors.push(r, g, b);
+      }
+  }
+
+  addTorch(x, y, z, positions, normals, colors, uvs, color) {
+      // Simple torch geometry (thin box)
+      // Center at x+0.5, y+0.5, z+0.5
+      // Width 0.15, Height 0.6
+      const w = 0.15 / 2;
+      const h = 0.6;
+      const bottom = 0; // On ground
+      
+      // We can reuse addFace logic but with custom corners
+      // Or just manually push vertices.
+      // Let's manually push a simple box (5 faces, no bottom)
+      
+      const cx = x + 0.5;
+      const cz = z + 0.5;
+      const cy = y;
+
+      // Define corners relative to center
+      const p = [
+          [cx - w, cy, cz + w], // 0: FL
+          [cx + w, cy, cz + w], // 1: FR
+          [cx + w, cy, cz - w], // 2: BR
+          [cx - w, cy, cz - w], // 3: BL
+          [cx - w, cy + h, cz + w], // 4: TFL
+          [cx + w, cy + h, cz + w], // 5: TFR
+          [cx + w, cy + h, cz - w], // 6: TBR
+          [cx - w, cy + h, cz - w]  // 7: TBL
+      ];
+
+      // Faces
+      const faces = [
+          [1, 5, 6, 2], // Right
+          [3, 7, 4, 0], // Left
+          [4, 7, 6, 5], // Top
+          [0, 4, 5, 1], // Front
+          [2, 6, 7, 3]  // Back
+      ];
+      
+      const faceNormals = [
+          [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]
+      ];
+
+      for (let i = 0; i < faces.length; i++) {
+          const f = faces[i];
+          const n = faceNormals[i];
+          
+          // Tri 1 (0, 2, 1) - Correct winding order
+          positions.push(p[f[0]][0], p[f[0]][1], p[f[0]][2]);
+          positions.push(p[f[2]][0], p[f[2]][1], p[f[2]][2]);
+          positions.push(p[f[1]][0], p[f[1]][1], p[f[1]][2]);
+          
+          // Tri 2 (0, 3, 2) - Correct winding order
+          positions.push(p[f[0]][0], p[f[0]][1], p[f[0]][2]);
+          positions.push(p[f[3]][0], p[f[3]][1], p[f[3]][2]);
+          positions.push(p[f[2]][0], p[f[2]][1], p[f[2]][2]);
+          
+          for (let k = 0; k < 6; k++) {
+              normals.push(n[0], n[1], n[2]);
+              colors.push(color.r, color.g, color.b);
+              uvs.push(0, 0);
+          }
+      }
+  }
+
+  addCactus(x, y, z, positions, normals, colors, uvs, color, blockId) {
+      const inset = 1/16;
+      
+      // Check 6 faces
+      // Right (x+1) - Always draw side faces due to inset
+      this.addFace(x, y, z, 0, positions, normals, colors, uvs, color, blockId, null, inset);
+      
+      // Left (x-1)
+      this.addFace(x, y, z, 1, positions, normals, colors, uvs, color, blockId, null, inset);
+      
+      // Top (y+1)
+      let neighbor = this.getBlock(x, y + 1, z);
+      if (this.shouldDrawFace(x, y + 1, z, neighbor) && neighbor !== BlockType.CACTUS) {
+          this.addFace(x, y, z, 2, positions, normals, colors, uvs, color, blockId, null, inset);
+      }
+      
+      // Bottom (y-1)
+      neighbor = this.getBlock(x, y - 1, z);
+      if (this.shouldDrawFace(x, y - 1, z, neighbor) && neighbor !== BlockType.CACTUS) {
+          this.addFace(x, y, z, 3, positions, normals, colors, uvs, color, blockId, null, inset);
+      }
+      
+      // Front (z+1)
+      this.addFace(x, y, z, 4, positions, normals, colors, uvs, color, blockId, null, inset);
+      
+      // Back (z-1)
+      this.addFace(x, y, z, 5, positions, normals, colors, uvs, color, blockId, null, inset);
   }
 }

@@ -4,7 +4,7 @@ export const BlockType = {
   DIRT: 2,
   GRASS: 3,
   BEDROCK: 4,
-  LOG: 5,
+  SPRUCE_LOG: 5,
   LEAVES: 6,
   SAND: 7,
   WATER: 8,
@@ -14,29 +14,64 @@ export const BlockType = {
   MUSHROOM_STEM: 12,
   MUSHROOM_CAP: 13,
   MYCELIUM: 14,
+  COAL_ORE: 15,
   TORCH: 100
 };
 
 export const BlockModels = {
   CUBE: 'cube',
-  TORCH: 'torch'
+  TORCH: 'torch',
+  CACTUS: 'cactus'
 };
 
 export const BlockDefinitions = {
   [BlockType.AIR]: { visible: false },
-  [BlockType.STONE]: { color: 0x888888, visible: true, model: BlockModels.CUBE },
-  [BlockType.DIRT]: { color: 0x8B4513, visible: true, model: BlockModels.CUBE },
-  [BlockType.GRASS]: { color: 0x00AA00, visible: true, model: BlockModels.CUBE },
+  [BlockType.STONE]: { color: 0x888888, visible: true, model: BlockModels.CUBE, textures: { all: 'stone.png' } },
+  [BlockType.DIRT]: { 
+    color: 0x8B4513, 
+    visible: true, 
+    model: BlockModels.CUBE,
+    textures: { all: 'dirt.png' }
+  },
+  [BlockType.GRASS]: { 
+    color: 0x00AA00, 
+    visible: true, 
+    model: BlockModels.CUBE,
+    textures: {
+      top: 'grass_block_tint.png',
+      side: 'grass_block_side.png',
+      bottom: 'dirt.png'
+    }
+  },
   [BlockType.BEDROCK]: { color: 0x333333, visible: true, model: BlockModels.CUBE },
-  [BlockType.LOG]: { color: 0x5D4037, visible: true, model: BlockModels.CUBE },
-  [BlockType.LEAVES]: { color: 0x2E7D32, visible: true, model: BlockModels.CUBE },
-  [BlockType.SAND]: { color: 0xE1C699, visible: true, model: BlockModels.CUBE },
-  [BlockType.WATER]: { color: 0x4FC3F7, visible: true, model: BlockModels.CUBE },
-  [BlockType.PINE_LEAVES]: { color: 0x1B5E20, visible: true, model: BlockModels.CUBE }, // Darker green
-  [BlockType.CACTUS]: { color: 0x66BB6A, visible: true, model: BlockModels.CUBE },
-  [BlockType.SNOW]: { color: 0xFFFFFF, visible: true, model: BlockModels.CUBE },
+  [BlockType.SPRUCE_LOG]: { 
+    color: 0x5D4037, 
+    visible: true, 
+    model: BlockModels.CUBE,
+    textures: {
+      top: 'spruce_log_top.png',
+      bottom: 'spruce_log_top.png',
+      side: 'spruce_log.png'
+    }
+  },
+  [BlockType.LEAVES]: { color: 0x2E7D32, visible: true, model: BlockModels.CUBE, textures: { all: 'spruce_leaves.png' } },
+  [BlockType.SAND]: { color: 0xE1C699, visible: true, model: BlockModels.CUBE, textures: { all: 'sand.png' } },
+  [BlockType.WATER]: { color: 0x4FC3F7, visible: true, model: BlockModels.CUBE, textures: { all: 'water_overlay.png' } },
+  [BlockType.PINE_LEAVES]: { color: 0x1B5E20, visible: true, model: BlockModels.CUBE, textures: { all: 'spruce_leaves.png' } }, // Darker green
+  [BlockType.CACTUS]: { 
+    color: 0x66BB6A, 
+    visible: true, 
+    model: BlockModels.CACTUS, 
+    textures: {
+      top: 'cactus_top.png',
+      side: 'cactus_side.png',
+      bottom: 'cactus_top.png'
+    } 
+},
+  [BlockType.SNOW]: { color: 0xFFFFFF, visible: true, model: BlockModels.CUBE, textures: { all: 'snow.png' } },
   [BlockType.MUSHROOM_STEM]: { color: 0xD7CCC8, visible: true, model: BlockModels.CUBE },
   [BlockType.MUSHROOM_CAP]: { color: 0xE53935, visible: true, model: BlockModels.CUBE }, // Red mushroom
   [BlockType.MYCELIUM]: { color: 0x7E57C2, visible: true, model: BlockModels.CUBE }, // Purple grass
+  [BlockType.COAL_ORE]: { color: 0x111111, visible: true, model: BlockModels.CUBE, textures: { all: 'coal_ore.png' } }, // Black coal block
   [BlockType.TORCH]: { color: 0xFFD700, visible: true, light: 15, transparent: true, model: BlockModels.TORCH } // Gold color for torch
 };

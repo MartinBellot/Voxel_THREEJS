@@ -5,8 +5,8 @@ export class Physics {
   constructor(player) {
     this.player = player;
     this.world = player.game.world;
-    this.gravity = 30.0;
-    this.terminalVelocity = 50.0;
+    this.gravity = 32.0;
+    this.terminalVelocity = 78.4;
     
     // Bounding box du joueur (relative à sa position)
     this.width = 0.6;
@@ -80,7 +80,8 @@ export class Physics {
     if (this.checkCollision(nextX, position.y, position.z)) {
       // Auto-jump : si on touche un mur, on regarde si on peut monter
       if (this.player.canJump && !this.checkCollision(nextX, position.y + 1.1, position.z)) {
-        velocity.y = 8; // Force de saut automatique
+        velocity.y = 10.0; // Force de saut automatique
+        position.y += 0.2; // Petit boost vertical pour réduire la pause
         this.player.canJump = false;
       }
       velocity.x = 0;
@@ -93,7 +94,8 @@ export class Physics {
     if (this.checkCollision(position.x, position.y, nextZ)) {
       // Auto-jump
       if (this.player.canJump && !this.checkCollision(position.x, position.y + 1.1, nextZ)) {
-        velocity.y = 8;
+        velocity.y = 10.0;
+        position.y += 0.2;
         this.player.canJump = false;
       }
       velocity.z = 0;

@@ -11,7 +11,7 @@ export const ItemDefinitions = {
   [ItemType.DIRT]: { name: 'Dirt', blockType: BlockType.DIRT },
   [ItemType.GRASS]: { name: 'Grass', blockType: BlockType.GRASS },
   [ItemType.BEDROCK]: { name: 'Bedrock', blockType: BlockType.BEDROCK },
-  [ItemType.LOG]: { name: 'Log', blockType: BlockType.LOG },
+  [ItemType.SPRUCE_LOG]: { name: 'Spruce Log', blockType: BlockType.SPRUCE_LOG },
   [ItemType.LEAVES]: { name: 'Leaves', blockType: BlockType.LEAVES },
   [ItemType.SAND]: { name: 'Sand', blockType: BlockType.SAND },
   [ItemType.WATER]: { name: 'Water', blockType: BlockType.WATER },

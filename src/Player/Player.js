@@ -26,7 +26,7 @@ export class Player {
     this.canJump = false;
     this.flyMode = false;
     
-    this.speed = 5.0;
+    this.speed = 6.0;
     this.sprintSpeed = 10.0;
     this.flySpeed = 15.0;
     
@@ -62,6 +62,9 @@ export class Player {
     instructions.addEventListener('click', () => {
       if (!this.inventoryUI.isOpen) {
         this.controls.lock();
+        document.body.requestFullscreen().catch(err => {
+          console.warn("Error attempting to enable full-screen mode:", err);
+        });
       }
     });
 
@@ -132,7 +135,7 @@ export class Player {
           } else if (this.physics.inWater) {
               this.canJump = true; // Allow swimming up
           } else if (this.canJump) {
-            this.velocity.y = 10;
+            this.velocity.y = 9.0;
             this.canJump = false;
           }
           break;
@@ -142,6 +145,11 @@ export class Player {
             this.moveDown = true;
           }
           this.isSprinting = true;
+          break;
+        case 'Escape':
+          if (this.inventoryUI.isOpen) {
+            this.inventoryUI.toggle();
+          }
           break;
       }
     };
@@ -285,6 +293,13 @@ export class Player {
 
     if (this.controls.isLocked === true) {
       
+      // FOV Effect for sprinting
+      const targetFOV = this.isSprinting ? 85 : 75;
+      if (Math.abs(this.camera.fov - targetFOV) > 0.1) {
+          this.camera.fov += (targetFOV - this.camera.fov) * delta * 10;
+          this.camera.updateProjectionMatrix();
+      }
+
       const currentSpeed = this.flyMode ? this.flySpeed : (this.isSprinting ? this.sprintSpeed : this.speed);
 
       // Calcul de la direction de mouvement souhaitée
