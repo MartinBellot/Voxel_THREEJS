@@ -5,6 +5,7 @@ import { Clouds } from './World/Clouds.js';
 import { Console } from './Console.js';
 import { TextureManager } from './Utils/TextureManager.js';
 import { NetworkManager } from './NetworkManager.js';
+import { PauseMenu } from './PauseMenu.js';
 
 export class Game {
   constructor() {
@@ -42,11 +43,13 @@ export class Game {
     this.player = new Player(this);
     this.clouds = new Clouds(this);
     this.console = new Console(this);
+    this.pauseMenu = new PauseMenu(this);
     
     // Network
     this.networkManager = new NetworkManager(this);
-    const username = "Player" + Math.floor(Math.random() * 1000);
-    this.networkManager.connect(username);
+    // Connection will be initiated in start()
+    
+    this.isPlaying = false;
 
     this.setupLights();
     this.setupCelestialBodies();
@@ -216,6 +219,7 @@ export class Game {
   }
 
   addPlayerToTab(player) {
+    if (document.getElementById(`player-li-${player.id}`)) return;
     const list = document.getElementById('player-list-ul');
     const li = document.createElement('li');
     li.innerText = player.username;
@@ -367,13 +371,31 @@ export class Game {
     }
   }
 
+  start(username, renderDistance) {
+    this.world.renderDistance = renderDistance;
+    this.world.farRenderDistance = renderDistance + 4; // Load a bit more than high detail
+    
+    // Force update of chunks to respect new render distance immediately
+    this.world.lastChunkUpdatePos = { x: -999, z: -999 }; // Force update
+    
+    this.networkManager.connect(username);
+    
+    // Lock pointer to start playing
+    this.player.controls.lock();
+    
+    // this.isPlaying = true; // Will be set by NetworkManager on player_init
+  }
+
   animate() {
     requestAnimationFrame(() => this.animate());
 
     const delta = this.clock.getDelta();
 
-    this.player.update(delta);
-    this.world.update(delta);
+    if (this.isPlaying) {
+      this.player.update(delta);
+      this.world.update(delta);
+    }
+    
     this.clouds.update(delta);
     this.updateDayNightCycle(delta);
     

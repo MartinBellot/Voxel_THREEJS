@@ -18,7 +18,7 @@ export class Chunk {
   }
 
   isBlockOpaque(id) {
-    if (id === BlockType.AIR || id === BlockType.WATER || id === BlockType.TORCH || id === BlockType.CACTUS || id === BlockType.LEAVES || id === BlockType.PINE_LEAVES || id === BlockType.MUSHROOM_STEM || id === BlockType.MUSHROOM_CAP || id === BlockType.SAPLING || id === BlockType.FLOWER) return false;
+    if (id === BlockType.AIR || id === BlockType.WATER || id === BlockType.TORCH || id === BlockType.CACTUS || id === BlockType.LEAVES || id === BlockType.PINE_LEAVES || id === BlockType.MUSHROOM_STEM || id === BlockType.MUSHROOM_CAP || id === BlockType.SAPLING || id === BlockType.FLOWER || id === BlockType.CLOUD) return false;
     return true;
   }
 
@@ -86,6 +86,10 @@ export class Chunk {
             hasCactus = treeNoise > 0.5 && pseudoRandom > 0.99;
         }
 
+        // Pre-calculate island data for this column
+        const islandData = this.world.getIslandData(worldX, worldZ);
+        const isNearIsland = islandData.center && islandData.dist < islandData.radius + 20; // +20 for noise margin
+
         for (let y = 0; y < this.height; y++) {
           const index = this.getBlockIndex(x, y, z);
           
@@ -99,6 +103,7 @@ export class Chunk {
           if (y === 0) {
             this.data[index] = BlockType.BEDROCK;
           } else if (y < surfaceHeight) {
+             // ...existing code...
              // Volcano handling
              if (isCrater) {
                  if (y < 15) {
@@ -162,6 +167,59 @@ export class Chunk {
              }
           } else {
             // Au dessus de la surface
+
+            // Floating Islands Generation
+            // Optimization: Only generate if player is high enough
+            const playerY = (this.game.player && this.game.player.camera) ? this.game.player.camera.position.y : 0;
+            
+            if (playerY > 300 && y > 400 && y < 600) {
+                if (isNearIsland) {
+                    const islandBaseY = 450;
+                    const islandTopY = 500;
+                    
+                    // Inverted Cone Shape
+                    // Radius increases as Y goes up
+                    let maxR = islandData.radius;
+                    
+                    // Add noise to radius for natural look
+                    const radiusNoise = this.world.noise2D(worldX * 0.1, worldZ * 0.1) * 5;
+                    maxR += radiusNoise;
+
+                    let currentRadius = 0;
+                    if (y >= islandBaseY && y <= islandTopY) {
+                        // Cone function: 0 at bottom, maxR at top
+                        // Using power > 1 for "spikey" bottom (Aether style)
+                        const t = (y - islandBaseY) / (islandTopY - islandBaseY);
+                        currentRadius = maxR * Math.pow(t, 0.7); // 0.7 makes it a bit bowl-like, >1 makes it spikey. Let's try 0.7 for a nice floating mass.
+                    } else if (y > islandTopY && y < islandTopY + 5) {
+                        // Top surface roughness
+                        currentRadius = maxR;
+                    }
+
+                    if (islandData.dist < currentRadius) {
+                        // Inside the cone
+                        if (y === islandTopY) {
+                             this.data[index] = BlockType.GRASS;
+                        } else if (y > islandTopY - 4) {
+                             this.data[index] = BlockType.DIRT;
+                        } else {
+                             this.data[index] = BlockType.STONE;
+                        }
+                        continue;
+                    }
+                }
+                
+                // Clouds - only near islands to save perf
+                if (isNearIsland && islandData.dist < islandData.radius + 40) {
+                    const cloudNoise = this.world.noise3D(worldX * 0.05, y * 0.05, worldZ * 0.05);
+                    const dist = Math.abs(y - 500);
+                    if (cloudNoise > 0.7 && dist < 30) {
+                        this.data[index] = BlockType.CLOUD;
+                        continue;
+                    }
+                }
+            }
+
             if (hasTree && y >= surfaceHeight && y < surfaceHeight + 7) {
                 // Tree generation moved to decorateChunk
                 this.data[index] = BlockType.AIR;

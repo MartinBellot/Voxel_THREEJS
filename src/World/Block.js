@@ -18,6 +18,7 @@ export const BlockType = {
   MAGMA: 16,
   DARK_OAK_LOG: 17,
   DARK_OAK_LEAVES: 18,
+  CLOUD: 19,
   TORCH: 100
 };
 
@@ -29,6 +30,7 @@ export const BlockModels = {
 
 export const BlockDefinitions = {
   [BlockType.AIR]: { visible: false },
+  [BlockType.CLOUD]: { color: 0xFFFFFF, visible: true, model: BlockModels.CUBE, transparent: true, opacity: 0.8 },
   [BlockType.STONE]: { color: 0x888888, visible: true, model: BlockModels.CUBE, textures: { all: 'stone.png' } },
   [BlockType.DIRT]: { 
     color: 0x8B4513, 

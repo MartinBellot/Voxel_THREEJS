@@ -59,26 +59,29 @@ export class Player {
   // setupUI removed - handled by InventoryUI
 
   setupInputs() {
-    const instructions = document.getElementById('instructions');
-    
-    instructions.addEventListener('click', () => {
-      if (!this.inventoryUI.isOpen) {
-        this.controls.lock();
-        document.body.requestFullscreen().catch(err => {
-          console.warn("Error attempting to enable full-screen mode:", err);
-        });
-      }
-    });
-
     this.controls.addEventListener('lock', () => {
-      instructions.style.display = 'none';
+      if (this.game.pauseMenu) this.game.pauseMenu.hide();
       if (this.inventoryUI.isOpen) this.inventoryUI.toggle(); // Close inventory if we lock (e.g. clicking back in game)
     });
 
     this.controls.addEventListener('unlock', () => {
-      if (!this.inventoryUI.isOpen && (!this.game.console || !this.game.console.isOpen)) {
-        instructions.style.display = 'block';
+      // Only show pause menu if we are playing and not in inventory/console
+      if (this.game.isPlaying && !this.inventoryUI.isOpen && (!this.game.console || !this.game.console.isOpen)) {
+        if (this.game.pauseMenu) this.game.pauseMenu.show();
       }
+    });
+
+    // Handle Escape key manually if Keyboard Lock is active
+    document.addEventListener('keydown', (event) => {
+        if (event.code === 'Escape') {
+            if (this.game.isPlaying && !this.inventoryUI.isOpen && (!this.game.console || !this.game.console.isOpen)) {
+                // If menu is not visible, show it and unlock cursor
+                if (this.game.pauseMenu && !this.game.pauseMenu.isVisible) {
+                    this.game.pauseMenu.show();
+                    this.controls.unlock();
+                }
+            }
+        }
     });
 
     document.addEventListener('mousedown', (event) => {

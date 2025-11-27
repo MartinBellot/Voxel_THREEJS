@@ -8,7 +8,7 @@ export class World {
     this.game = game;
     this.chunks = new Map();
     this.chunkSize = 16;
-    this.chunkHeight = 256;
+    this.chunkHeight = 640;
     this.renderDistance = 6; // High detail distance
     this.farRenderDistance = 16; // Low detail distance (Immense)
     this.seaLevel = 40;
@@ -27,6 +27,7 @@ export class World {
     this.lastDebugTime = 0;
     this.lastChunkUpdatePos = { x: -999, z: -999 };
     this.chunksToLoad = [];
+    this.isHighAltitude = false;
 
     // Génération initiale synchrone
     this.generateInitialChunks();
@@ -71,6 +72,38 @@ export class World {
       }
       
       return { dist: closestDist, center: volcanoCenter };
+  }
+
+  getIslandData(x, z) {
+      const gridSize = 600; // Very large grid for rarity
+      const gridX = Math.floor(x / gridSize);
+      const gridZ = Math.floor(z / gridSize);
+      
+      let closestDist = Infinity;
+      let islandCenter = null;
+      let islandRadius = 0;
+
+      for (let gx = gridX - 1; gx <= gridX + 1; gx++) {
+          for (let gz = gridZ - 1; gz <= gridZ + 1; gz++) {
+              const cellSeed = (this.seed * 20000 + gx * 4523.123 + gz * 7891.321) % 1;
+              const rng = new SeededRandom(cellSeed);
+              
+              // 30% chance of island in this large grid
+              if (rng.random() < 0.3) {
+                  const ix = gx * gridSize + rng.random() * gridSize;
+                  const iz = gz * gridSize + rng.random() * gridSize;
+                  
+                  const dist = Math.sqrt((x - ix)**2 + (z - iz)**2);
+                  if (dist < closestDist) {
+                      closestDist = dist;
+                      islandCenter = { x: ix, z: iz };
+                      islandRadius = 40 + rng.random() * 30; // Radius 40-70
+                  }
+              }
+          }
+      }
+      
+      return { dist: closestDist, center: islandCenter, radius: islandRadius };
   }
 
   setSeed(seed) {
@@ -259,6 +292,32 @@ export class World {
 
   update(delta) {
     const playerPos = this.game.player.camera.position;
+
+    // Check altitude change for island generation optimization
+    const isHigh = playerPos.y > 300;
+    if (isHigh !== this.isHighAltitude) {
+        this.isHighAltitude = isHigh;
+        console.log(`Altitude changed to ${isHigh ? 'High' : 'Low'}. Regenerating chunks...`);
+        
+        // Clear all chunks to force regeneration with/without islands
+        this.chunks.forEach(chunk => {
+            if (chunk.meshes) {
+                Object.values(chunk.meshes).forEach(mesh => {
+                    this.game.scene.remove(mesh);
+                    mesh.geometry.dispose();
+                    mesh.material.dispose();
+                });
+            }
+            if (chunk.waterMesh) {
+                this.game.scene.remove(chunk.waterMesh);
+                chunk.waterMesh.geometry.dispose();
+                chunk.waterMesh.material.dispose();
+            }
+        });
+        this.chunks.clear();
+        this.lastChunkUpdatePos = { x: -999, z: -999 }; // Force update
+    }
+
     const chunkX = Math.floor(playerPos.x / this.chunkSize);
     const chunkZ = Math.floor(playerPos.z / this.chunkSize);
     
