@@ -71,10 +71,11 @@ class GameConsumer(AsyncWebsocketConsumer):
             # Get world data
             world_data = await self.get_world_data()
             
-            # Send world data (Seed & Modifications)
+            # Send world data (Seed & Modifications & Time)
             await self.send(text_data=json.dumps({
                 "type": "world_data",
                 "seed": world_data['seed'],
+                "time": world_data['time'],
                 "modifications": world_data['modifications']
             }))
             
@@ -156,6 +157,7 @@ class GameConsumer(AsyncWebsocketConsumer):
             
         return {
             "seed": world.seed,
+            "time": world.time,
             "modifications": all_modifications
         }
 

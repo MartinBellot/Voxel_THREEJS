@@ -6,6 +6,7 @@ import { Console } from './Console.js';
 import { TextureManager } from './Utils/TextureManager.js';
 import { NetworkManager } from './NetworkManager.js';
 import { PauseMenu } from './PauseMenu.js';
+import { DroppedItem } from './World/DroppedItem.js';
 
 export class Game {
   constructor() {
@@ -45,6 +46,8 @@ export class Game {
     this.console = new Console(this);
     this.pauseMenu = new PauseMenu(this);
     
+    this.droppedItems = [];
+
     // Network
     this.networkManager = new NetworkManager(this);
     // Connection will be initiated in start()
@@ -394,6 +397,15 @@ export class Game {
     if (this.isPlaying) {
       this.player.update(delta);
       this.world.update(delta);
+
+      // Update dropped items
+      for (let i = this.droppedItems.length - 1; i >= 0; i--) {
+          const item = this.droppedItems[i];
+          item.update(delta, this.player.camera.position);
+          if (item.isCollected) {
+              this.droppedItems.splice(i, 1);
+          }
+      }
     }
     
     this.clouds.update(delta);

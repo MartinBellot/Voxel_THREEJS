@@ -10,9 +10,10 @@ export class NetworkManager {
     }
 
     connect(username) {
+        this.username = username;
         console.log('Connecting to WebSocket...');
         // Force connection to VPS as requested
-        const wsUrl = 'ws://148.230.117.98:8082/ws/game/';
+        const wsUrl = 'ws://127.0.0.1:8000/ws/game/';
         
         console.log(`Attempting connection to: ${wsUrl}`);
         try {

@@ -3,6 +3,7 @@ from django.db import models
 class World(models.Model):
     name = models.CharField(max_length=100, default="World 1")
     seed = models.IntegerField(default=12345)
+    time = models.IntegerField(default=6000)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

@@ -5,6 +5,7 @@ import { BlockType } from '../World/Block.js';
 import { Inventory } from '../Inventory.js';
 import { InventoryUI } from '../InventoryUI.js';
 import { ItemDefinitions } from '../Item.js';
+import { DroppedItem } from '../World/DroppedItem.js';
 
 export class Player {
   constructor(game) {
@@ -217,8 +218,17 @@ export class Player {
       const y = Math.floor(position.y);
       const z = Math.floor(position.z);
       
+      // Get block type before removing
+      const blockType = this.game.world.getBlock(x, y, z);
+
       this.game.world.setBlock(x, y, z, BlockType.AIR);
       
+      // Drop item
+      if (blockType && blockType !== BlockType.AIR) {
+          const item = new DroppedItem(this.game, x, y, z, blockType);
+          this.game.droppedItems.push(item);
+      }
+
       if (this.game.networkManager && this.game.networkManager.connected) {
           this.game.networkManager.sendBlockUpdate(x, y, z, BlockType.AIR);
       }
@@ -278,9 +288,12 @@ export class Player {
               this.game.networkManager.sendBlockUpdate(x, y, z, blockType);
           }
           
-          // Optional: Consume item in survival mode
-          // this.inventory.removeItem(this.inventory.selectedSlot, 1);
-          // this.inventoryUI.updateHotbar();
+          // Consume item
+          this.inventory.removeItem(this.inventory.selectedSlot, 1);
+          this.inventoryUI.updateHotbar();
+          if (this.inventoryUI.isOpen) {
+              this.inventoryUI.updateSlots();
+          }
         }
       }
     }

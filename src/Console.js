@@ -4,9 +4,54 @@ export class Console {
         this.isOpen = false;
         this.history = [];
         this.historyIndex = -1;
+        this.socket = null;
         
         this.createUI();
         this.setupEvents();
+        this.connect();
+    }
+
+    connect() {
+        const wsUrl = 'ws://127.0.0.1:8000/ws/console/';
+        console.log(`Connecting to Console WebSocket: ${wsUrl}`);
+        
+        this.socket = new WebSocket(wsUrl);
+        
+        this.socket.onopen = () => {
+            console.log('Connected to Console Server');
+        };
+        
+        this.socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            this.handleMessage(data);
+        };
+        
+        this.socket.onclose = () => {
+            console.log('Console WebSocket closed. Reconnecting in 5s...');
+            setTimeout(() => this.connect(), 5000);
+        };
+    }
+
+    handleMessage(data) {
+        switch (data.type) {
+            case 'console_log':
+                this.log(data.message, data.level);
+                break;
+            case 'time_update':
+                this.game.time = data.time;
+                this.log(`Time synced to ${data.time}`);
+                break;
+            case 'teleport':
+                this.game.player.camera.position.set(data.x, data.y, data.z);
+                this.game.player.velocity.set(0, 0, 0);
+                break;
+            case 'fly_mode':
+                if (data.state === 'on') this.game.player.flyMode = true;
+                else if (data.state === 'off') this.game.player.flyMode = false;
+                else this.game.player.flyMode = !this.game.player.flyMode;
+                this.log(`Fly mode: ${this.game.player.flyMode ? 'ON' : 'OFF'}`);
+                break;
+        }
     }
 
     createUI() {
@@ -89,93 +134,16 @@ export class Console {
     processCommand(input) {
         if (!input.trim()) return;
         
-        this.log(`> ${input}`);
         this.history.push(input);
         
-        const args = input.trim().split(' ');
-        const command = args.shift().toLowerCase().replace('/', '');
-        
-        switch (command) {
-            case 'tp':
-            case 'teleport':
-                this.cmdTeleport(args);
-                break;
-            case 'fly':
-                this.cmdFly(args);
-                break;
-            case 'time':
-                this.cmdTime(args);
-                break;
-            case 'help':
-                this.cmdHelp();
-                break;
-            default:
-                this.log(`Unknown command: ${command}`, 'error');
-        }
-    }
-
-    cmdTeleport(args) {
-        if (args.length < 3) {
-            this.log('Usage: /tp <x> <y> <z>', 'error');
-            return;
-        }
-        
-        const x = parseFloat(args[0]);
-        const y = parseFloat(args[1]);
-        const z = parseFloat(args[2]);
-        
-        if (isNaN(x) || isNaN(y) || isNaN(z)) {
-            this.log('Invalid coordinates', 'error');
-            return;
-        }
-        
-        this.game.player.camera.position.set(x, y, z);
-        this.game.player.velocity.set(0, 0, 0);
-        this.log(`Teleported to ${x}, ${y}, ${z}`);
-    }
-
-    cmdFly(args) {
-        if (args.length === 0) {
-            this.game.player.flyMode = !this.game.player.flyMode;
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify({
+                type: 'command',
+                command: input,
+                username: this.game.networkManager?.username || 'Anonymous'
+            }));
         } else {
-            const state = args[0].toLowerCase();
-            if (state === 'on') this.game.player.flyMode = true;
-            else if (state === 'off') this.game.player.flyMode = false;
-            else {
-                this.log('Usage: /fly [on/off]', 'error');
-                return;
-            }
+            this.log('Error: Not connected to server', 'error');
         }
-        this.log(`Fly mode: ${this.game.player.flyMode ? 'ON' : 'OFF'}`);
-    }
-
-    cmdTime(args) {
-        if (args.length < 2 || args[0] !== 'set') {
-            this.log('Usage: /time set <day/night/value>', 'error');
-            return;
-        }
-        
-        const value = args[1].toLowerCase();
-        if (value === 'day') {
-            this.game.time = 6000;
-        } else if (value === 'night') {
-            this.game.time = 18000;
-        } else {
-            const timeVal = parseInt(value);
-            if (!isNaN(timeVal)) {
-                this.game.time = timeVal;
-            } else {
-                this.log('Invalid time value', 'error');
-                return;
-            }
-        }
-        this.log(`Time set to ${this.game.time}`);
-    }
-
-    cmdHelp() {
-        this.log('Available commands:');
-        this.log('/tp <x> <y> <z> - Teleport');
-        this.log('/fly [on/off] - Toggle fly mode');
-        this.log('/time set <day/night/value> - Set time');
     }
 }
