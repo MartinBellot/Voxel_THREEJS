@@ -8,7 +8,7 @@ export class World {
     this.game = game;
     this.chunks = new Map();
     this.chunkSize = 16;
-    this.chunkHeight = 200;
+    this.chunkHeight = 256;
     this.renderDistance = 6; // High detail distance
     this.farRenderDistance = 16; // Low detail distance (Immense)
     this.seaLevel = 40;
@@ -38,6 +38,39 @@ export class World {
       this.noise3D = createNoise3D(() => rng.random());
       this.noise2D = createNoise2D(() => rng.random());
       this.biomeNoise = createNoise2D(() => rng.random());
+  }
+
+  getVolcanoData(x, z) {
+      const gridSize = 512;
+      const gridX = Math.floor(x / gridSize);
+      const gridZ = Math.floor(z / gridSize);
+      
+      let closestDist = Infinity;
+      let volcanoCenter = null;
+
+      for (let gx = gridX - 1; gx <= gridX + 1; gx++) {
+          for (let gz = gridZ - 1; gz <= gridZ + 1; gz++) {
+              // Pseudo-random based on grid coords
+              // Use a simple hash to seed the random for this grid cell
+              // We need a deterministic seed based on gx, gz and world seed
+              const cellSeed = (this.seed * 10000 + gx * 3412.123 + gz * 9871.321) % 1;
+              const rng = new SeededRandom(cellSeed);
+              
+              // 10% chance of volcano in this grid (Very rare)
+              if (rng.random() < 0.1) {
+                  const vx = gx * gridSize + rng.random() * gridSize;
+                  const vz = gz * gridSize + rng.random() * gridSize;
+                  
+                  const dist = Math.sqrt((x - vx)**2 + (z - vz)**2);
+                  if (dist < closestDist) {
+                      closestDist = dist;
+                      volcanoCenter = { x: vx, z: vz };
+                  }
+              }
+          }
+      }
+      
+      return { dist: closestDist, center: volcanoCenter };
   }
 
   setSeed(seed) {
@@ -123,6 +156,47 @@ export class World {
     const noise = this.biomeNoise(x * 0.001, z * 0.001);
     const localNoise = this.noise2D(x * 0.02, z * 0.02); // Detail
     
+    // Check for Volcano
+    const volcanoData = this.getVolcanoData(x, z);
+    const volcanoRadius = 150; 
+    const craterRadius = 20;
+
+    if (volcanoData.center && volcanoData.dist < volcanoRadius) {
+        const maxVolcanoHeight = 240;
+        const baseHeight = this.seaLevel + 10;
+        
+        // Cone shape
+        // Normalized distance 0..1
+        const t = volcanoData.dist / volcanoRadius;
+        
+        // Height based on distance (Cone)
+        // Using a curve that gets steeper near the top
+        let volcanoH = baseHeight + (maxVolcanoHeight - baseHeight) * (1 - Math.pow(t, 0.8));
+        
+        // Crater logic
+        if (volcanoData.dist < craterRadius) {
+            // Inside crater
+            // We want it to go down to bedrock (approx height 5)
+            // Smooth transition from rim to bottom
+            // Rim is at craterRadius
+            
+            // Normalized crater distance 0..1 (0 is center)
+            const ct = volcanoData.dist / craterRadius;
+            
+            // Height at rim
+            const rimHeight = baseHeight + (maxVolcanoHeight - baseHeight) * (1 - Math.pow(craterRadius/volcanoRadius, 0.8));
+            
+            // Crater function: 5 at center, rimHeight at edge
+            // Use power to make it steep or bowl like
+            volcanoH = 5 + (rimHeight - 5) * Math.pow(ct, 4);
+        }
+        
+        // Add roughness
+        volcanoH += localNoise * 3;
+        
+        return Math.min(this.chunkHeight - 1, Math.max(1, Math.floor(volcanoH)));
+    }
+
     let height = this.seaLevel; // Base sea level (30)
     
     if (noise < -0.2) {
@@ -151,7 +225,15 @@ export class World {
         if (noise > 0.5) { // Mountain
              // Exponential mountain growth
              const mountainFactor = (noise - 0.5) * 2; // 0 to 1
-             height += Math.pow(mountainFactor, 1.5) * 140 + (localNoise * 10);
+             // Target: 100 to 250
+             // Base height is around 60-70 here.
+             // We add up to 180 more.
+             height += Math.pow(mountainFactor, 1.2) * 180 + (localNoise * 10);
+             
+             // Ensure minimum mountain height if deep in mountain biome
+             if (mountainFactor > 0.5) {
+                 height = Math.max(height, 100 + localNoise * 10);
+             }
         } else {
              height += localNoise * 5; // Normal terrain roughness
         }

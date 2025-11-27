@@ -15,6 +15,9 @@ export const BlockType = {
   MUSHROOM_CAP: 13,
   MYCELIUM: 14,
   COAL_ORE: 15,
+  MAGMA: 16,
+  DARK_OAK_LOG: 17,
+  DARK_OAK_LEAVES: 18,
   TORCH: 100
 };
 
@@ -73,5 +76,23 @@ export const BlockDefinitions = {
   [BlockType.MUSHROOM_CAP]: { color: 0xE53935, visible: true, model: BlockModels.CUBE }, // Red mushroom
   [BlockType.MYCELIUM]: { color: 0x7E57C2, visible: true, model: BlockModels.CUBE }, // Purple grass
   [BlockType.COAL_ORE]: { color: 0x111111, visible: true, model: BlockModels.CUBE, textures: { all: 'coal_ore.png' } }, // Black coal block
+  [BlockType.MAGMA]: { color: 0xFF4500, visible: true, model: BlockModels.CUBE, textures: { all: 'stone.png' } }, // Orange-Red, reusing stone texture
+  [BlockType.DARK_OAK_LOG]: { 
+    color: 0x3E2723, // Very dark brown
+    visible: true, 
+    model: BlockModels.CUBE,
+    textures: {
+      top: 'spruce_log_top.png', // Reusing spruce textures but darker color will be applied if I remove texture or tint it. 
+      // Actually, the renderer prefers texture if available. 
+      // I'll rely on the color tinting logic I'll add or just use the color if texture is missing.
+      // But wait, the renderer uses white if texture exists.
+      // I should probably not set texture if I want the color to show, OR I need to implement tinting for these blocks.
+      // For now, let's reuse spruce textures.
+      top: 'spruce_log_top.png',
+      bottom: 'spruce_log_top.png',
+      side: 'spruce_log.png'
+    }
+  },
+  [BlockType.DARK_OAK_LEAVES]: { color: 0x1B5E20, visible: true, model: BlockModels.CUBE, textures: { all: 'spruce_leaves.png' } },
   [BlockType.TORCH]: { color: 0xFFD700, visible: true, light: 15, transparent: true, model: BlockModels.TORCH } // Gold color for torch
 };

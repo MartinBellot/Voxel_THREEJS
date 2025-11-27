@@ -68,6 +68,11 @@ export class Chunk {
         const noiseValue = this.world.noise3D(worldX * 0.05, 0, worldZ * 0.05); // Pour les grottes
         const surfaceHeight = this.world.getHeight(worldX, worldZ);
         
+        // Check for Volcano
+        const volcanoData = this.world.getVolcanoData(worldX, worldZ);
+        const isVolcano = volcanoData.center && volcanoData.dist < 150;
+        const isCrater = isVolcano && volcanoData.dist < 25;
+
         // Arbres : probabilité basée sur le bruit
         const treeNoise = this.world.noise2D(worldX * 0.1, worldZ * 0.1);
         const pseudoRandom = Math.abs(Math.sin(worldX * 12.9898 + worldZ * 78.233) * 43758.5453) % 1;
@@ -75,9 +80,9 @@ export class Chunk {
         let hasTree = false;
         let hasCactus = false;
 
-        if (biome === 'Pine Forest') {
+        if (biome === 'Pine Forest' && !isVolcano) {
             hasTree = treeNoise > 0.4 && pseudoRandom > 0.85; // Plus dense
-        } else if (biome === 'Desert') { //CACTUS EXTREMEMENTS RARES:
+        } else if (biome === 'Desert' && !isVolcano) { //CACTUS EXTREMEMENTS RARES:
             hasCactus = treeNoise > 0.5 && pseudoRandom > 0.99;
         }
 
@@ -94,6 +99,17 @@ export class Chunk {
           if (y === 0) {
             this.data[index] = BlockType.BEDROCK;
           } else if (y < surfaceHeight) {
+             // Volcano handling
+             if (isCrater) {
+                 if (y < 15) {
+                     this.data[index] = BlockType.MAGMA;
+                 } else {
+                     if (Math.random() < 0.4) this.data[index] = BlockType.MAGMA;
+                     else this.data[index] = BlockType.STONE;
+                 }
+                 continue;
+             }
+
              // Grottes
              const caveNoise = this.world.noise3D(worldX * 0.05, y * 0.05, worldZ * 0.05);
              const caveEntranceNoise = this.world.noise3D(worldX * 0.03, y * 0.05, worldZ * 0.03);
@@ -114,7 +130,7 @@ export class Chunk {
                    }
                } else if (biome === 'Mountain') {
                    if (y === surfaceHeight - 1) {
-                       if (y > 100) {
+                       if (y > 130) {
                            this.data[index] = BlockType.SNOW;
                        } else {
                            this.data[index] = BlockType.STONE;
@@ -147,12 +163,8 @@ export class Chunk {
           } else {
             // Au dessus de la surface
             if (hasTree && y >= surfaceHeight && y < surfaceHeight + 7) {
-                // Tronc de sapin (plus haut)
-                if (y < surfaceHeight + 6) {
-                    this.data[index] = BlockType.SPRUCE_LOG;
-                } else {
-                    this.data[index] = BlockType.PINE_LEAVES; // Sommet
-                }
+                // Tree generation moved to decorateChunk
+                this.data[index] = BlockType.AIR;
             } else if (hasCactus && y >= surfaceHeight && y < surfaceHeight + 3) {
                 this.data[index] = BlockType.CACTUS;
             } else {
@@ -180,18 +192,54 @@ export class Chunk {
             const surfaceHeight = this.world.getHeight(worldX, worldZ);
             const biome = this.world.getBiome(worldX, worldZ);
             
-            if (biome === 'Pine Forest') {
+            // Check block below to prevent floating trees
+            if (surfaceHeight > 0) {
+                const indexBelow = this.getBlockIndex(x, surfaceHeight - 1, z);
+                const blockBelow = this.data[indexBelow];
+                if (blockBelow === BlockType.AIR || blockBelow === BlockType.WATER) continue;
+            } else {
+                continue;
+            }
+            
+            // Check for Volcano
+            const volcanoData = this.world.getVolcanoData(worldX, worldZ);
+            const isVolcano = volcanoData.center && volcanoData.dist < 150;
+
+            if (biome === 'Pine Forest' && !isVolcano) {
                 const treeNoise = this.world.noise2D(worldX * 0.1, worldZ * 0.1);
                 const pseudoRandom = Math.abs(Math.sin(worldX * 12.9898 + worldZ * 78.233) * 43758.5453) % 1;
                 const hasTree = treeNoise > 0.4 && pseudoRandom > 0.85;
 
                 if (hasTree) {
-                    // Sapin : forme conique
-                    // Base des feuilles
+                    // Restore old tree generation (Classic Spruce)
+                    // Trunk
+                    for (let i = 0; i < 6; i++) {
+                        if (surfaceHeight + i < this.height) {
+                             const index = this.getBlockIndex(x, surfaceHeight + i, z);
+                             this.data[index] = BlockType.SPRUCE_LOG;
+                        }
+                    }
+                    // Top leaf
+                    if (surfaceHeight + 6 < this.height) {
+                        const index = this.getBlockIndex(x, surfaceHeight + 6, z);
+                        this.data[index] = BlockType.PINE_LEAVES;
+                    }
+                    
+                    // Leaves
                     this.addLeaves(x, surfaceHeight + 3, z, 2, BlockType.PINE_LEAVES);
                     this.addLeaves(x, surfaceHeight + 4, z, 2, BlockType.PINE_LEAVES);
                     this.addLeaves(x, surfaceHeight + 5, z, 1, BlockType.PINE_LEAVES);
                     this.addLeaves(x, surfaceHeight + 6, z, 1, BlockType.PINE_LEAVES);
+                }
+            } else if (biome === 'Mountain' && !isVolcano) {
+                // New Pine Tree in Mountains
+                const treeNoise = this.world.noise2D(worldX * 0.1, worldZ * 0.1);
+                const pseudoRandom = Math.abs(Math.sin(worldX * 12.9898 + worldZ * 78.233) * 43758.5453) % 1;
+                // Sparse trees in mountains
+                const hasTree = treeNoise > 0.3 && pseudoRandom > 0.92;
+
+                if (hasTree) {
+                    this.generatePineTree(x, surfaceHeight, z);
                 }
             } else if (biome === 'Mushroom') {
                 const mushroomNoise = this.world.noise2D(worldX * 0.15, worldZ * 0.15);
@@ -205,6 +253,34 @@ export class Chunk {
         }
     }
   }
+
+  generatePineTree(x, y, z) {
+      const height = 7 + Math.floor(Math.random() * 3); // 7 to 9 blocks tall
+      
+      // Trunk (Force placement)
+      for (let i = 0; i < height; i++) {
+          if (y + i < this.height) {
+              const index = this.getBlockIndex(x, y + i, z);
+              this.data[index] = BlockType.DARK_OAK_LOG;
+          }
+      }
+      
+      // Leaves
+      // Top
+      this.setBlockLocal(x, y + height, z, BlockType.DARK_OAK_LEAVES);
+      this.setBlockLocal(x, y + height + 1, z, BlockType.DARK_OAK_LEAVES);
+      
+      // Layers going down
+      let radius = 1;
+      for (let i = height - 1; i > 2; i--) {
+          // Every 2 blocks, increase radius
+          if ((height - i) % 2 === 0) radius++;
+          if (radius > 3) radius = 3;
+          
+          this.addLeaves(x, y + i, z, radius, BlockType.DARK_OAK_LEAVES);
+      }
+  }
+
   addMushroom(centerX, centerY, centerZ) {
       const height = 4;
       // Stem
