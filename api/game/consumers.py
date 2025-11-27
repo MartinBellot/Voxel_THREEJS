@@ -1,15 +1,9 @@
 import json
-import random
 from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.db import database_sync_to_async
+from .models import World, Chunk, Player
 
-# Simple in-memory storage for world state (Global variable)
-# In a real production app, this should be in a database or Redis
-class WorldState:
-    def __init__(self):
-        self.seed = random.randint(0, 100000)
-        self.modifications = {} # Key: "x,y,z", Value: blockType
-
-world_state = WorldState()
+CHUNK_SIZE = 16
 
 class GameConsumer(AsyncWebsocketConsumer):
     players = {}
@@ -33,8 +27,11 @@ class GameConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
         
-        # Remove player from list and notify others
+        # Save player state and remove from list
         if self.channel_name in self.players:
+            player_data = self.players[self.channel_name]
+            await self.save_player_state(player_data)
+            
             del self.players[self.channel_name]
             
             await self.channel_layer.group_send(
@@ -52,18 +49,33 @@ class GameConsumer(AsyncWebsocketConsumer):
 
         if message_type == "join":
             username = data.get("username", "Anonymous")
+            
+            # Get or create player from DB
+            player_obj = await self.get_or_create_player(username)
+            
             self.players[self.channel_name] = {
                 "id": self.channel_name,
                 "username": username,
-                "position": {"x": 0, "y": 0, "z": 0},
-                "rotation": {"x": 0, "y": 0, "z": 0}
+                "position": {"x": player_obj.x, "y": player_obj.y, "z": player_obj.z},
+                "rotation": {"x": player_obj.rotation_x, "y": player_obj.rotation_y, "z": 0}
             }
+
+            # Send player init data (ID and saved position)
+            await self.send(text_data=json.dumps({
+                "type": "player_init",
+                "id": self.channel_name,
+                "position": self.players[self.channel_name]["position"],
+                "rotation": self.players[self.channel_name]["rotation"]
+            }))
+            
+            # Get world data
+            world_data = await self.get_world_data()
             
             # Send world data (Seed & Modifications)
             await self.send(text_data=json.dumps({
                 "type": "world_data",
-                "seed": world_state.seed,
-                "modifications": world_state.modifications
+                "seed": world_data['seed'],
+                "modifications": world_data['modifications']
             }))
             
             # Send current players list to the new player
@@ -98,16 +110,11 @@ class GameConsumer(AsyncWebsocketConsumer):
                 )
         
         elif message_type == "block_update":
-            # Save modification
             position = data.get("position")
             block_type = data.get("blockType")
-            key = f"{position['x']},{position['y']},{position['z']}"
             
-            if block_type == 0: # Air / Removed
-                # We still need to store it as "air" to override generated terrain
-                world_state.modifications[key] = 0
-            else:
-                world_state.modifications[key] = block_type
+            # Save modification to DB
+            await self.save_block_update(position, block_type)
             
             # Broadcast to all
             await self.channel_layer.group_send(
@@ -119,8 +126,60 @@ class GameConsumer(AsyncWebsocketConsumer):
                 }
             )
 
+    # Database methods
+    @database_sync_to_async
+    def get_or_create_player(self, username):
+        player, created = Player.objects.get_or_create(username=username)
+        return player
+
+    @database_sync_to_async
+    def save_player_state(self, player_data):
+        try:
+            player = Player.objects.get(username=player_data['username'])
+            player.x = player_data['position']['x']
+            player.y = player_data['position']['y']
+            player.z = player_data['position']['z']
+            player.rotation_x = player_data['rotation']['x']
+            player.rotation_y = player_data['rotation']['y']
+            player.save()
+        except Player.DoesNotExist:
+            pass
+
+    @database_sync_to_async
+    def get_world_data(self):
+        world, created = World.objects.get_or_create(name="World 1")
+        
+        # Aggregate all modifications from chunks
+        all_modifications = {}
+        for chunk in world.chunks.all():
+            all_modifications.update(chunk.modifications)
+            
+        return {
+            "seed": world.seed,
+            "modifications": all_modifications
+        }
+
+    @database_sync_to_async
+    def save_block_update(self, position, block_type):
+        world, created = World.objects.get_or_create(name="World 1")
+        
+        # Calculate chunk coordinates
+        chunk_x = int(position['x']) // CHUNK_SIZE
+        chunk_z = int(position['z']) // CHUNK_SIZE
+        
+        chunk, created = Chunk.objects.get_or_create(
+            world=world,
+            x=chunk_x,
+            z=chunk_z
+        )
+        
+        key = f"{position['x']},{position['y']},{position['z']}"
+        chunk.modifications[key] = block_type
+        chunk.save()
+
     # Handlers for group messages
     async def player_joined(self, event):
+
         await self.send(text_data=json.dumps({
             "type": "player_joined",
             "player": event["player"]

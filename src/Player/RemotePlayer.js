@@ -5,20 +5,20 @@ export class RemotePlayer {
         this.game = game;
         this.id = data.id;
         this.username = data.username;
-        
+
         // Group to hold mesh and label
         this.group = new THREE.Group();
-        
+
         // Simple mesh for now - Red box to distinguish
         const geometry = new THREE.BoxGeometry(0.6, 1.8, 0.6);
         const material = new THREE.MeshLambertMaterial({ color: 0xff0000 });
         this.mesh = new THREE.Mesh(geometry, material);
         this.mesh.position.y = 0.9; // Center vertically
         this.group.add(this.mesh);
-        
+
         // Add username label
         this.addLabel();
-        
+
         this.group.position.set(data.position.x, data.position.y, data.position.z);
         this.game.scene.add(this.group);
     }

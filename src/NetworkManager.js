@@ -48,6 +48,15 @@ export class NetworkManager {
 
     handleMessage(data) {
         switch (data.type) {
+            case 'player_init':
+                this.playerId = data.id;
+                if (this.game.player) {
+                    this.game.player.camera.position.set(data.position.x, data.position.y, data.position.z);
+                    this.game.player.camera.rotation.x = data.rotation.x;
+                    this.game.player.camera.rotation.y = data.rotation.y;
+                    this.game.player.velocity.set(0, 0, 0);
+                }
+                break;
             case 'world_data':
                 this.game.world.setModifications(data.modifications);
                 this.game.world.setSeed(data.seed);
