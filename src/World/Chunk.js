@@ -11,6 +11,7 @@ export class Chunk {
     this.height = this.world.chunkHeight;
     this.data = []; // Stocke les IDs des blocs
     this.meshes = {}; // Map of model -> Mesh
+    this.lights = []; // Stocke les lumières dynamiques
     this.lod = 0; // 0 = High, 1 = Low
     
     this.generateData();
@@ -400,6 +401,13 @@ export class Chunk {
     });
     this.meshes = {};
 
+    // Dispose existing lights
+    this.lights.forEach(light => {
+        this.game.scene.remove(light);
+        if (light.dispose) light.dispose();
+    });
+    this.lights = [];
+
     if (this.waterMesh) {
       this.game.scene.remove(this.waterMesh);
       this.waterMesh.geometry.dispose();
@@ -495,6 +503,17 @@ export class Chunk {
               // Torch Geometry (Simplified as a small box)
               // Always draw torches for now, or check if obscured (unlikely)
               this.addTorch(x, y, z, positions, normals, colors, uvs, color);
+
+              // Add PointLight for Torch
+              // Couleur orange/jaune (0xFFAA00), intensité 2.0, distance 30 (pour couvrir ~8 blocs)
+              const light = new THREE.PointLight(0xFFAA00, 10, 30);
+              light.position.set(
+                  this.x * this.size + x + 0.5,
+                  y + 0.6,
+                  this.z * this.size + z + 0.5
+              );
+              this.game.scene.add(light);
+              this.lights.push(light);
           }
         }
       }
