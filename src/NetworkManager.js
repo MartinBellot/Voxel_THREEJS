@@ -13,7 +13,7 @@ export class NetworkManager {
         this.username = username;
         console.log('Connecting to WebSocket...');
         // Force connection to VPS as requested
-        const wsUrl = 'ws://127.0.0.1:8000/ws/game/';
+        const wsUrl = 'ws://148.230.117.98:8011/ws/game/';
         
         console.log(`Attempting connection to: ${wsUrl}`);
         try {
@@ -103,15 +103,16 @@ export class NetworkManager {
                     this.game.player.camera.rotation.set(0, 0, 0);
                     
                     // Apply rotation from server (Pitch = X, Yaw = Y)
-                    // PointerLockControls usually handles Yaw on the Object3D (camera) and Pitch on the camera itself?
-                    // Actually standard PointerLockControls applies both to the camera.
-                    // But we need to be careful about the order.
                     
                     // Force rotation order to YXZ (standard for FPS)
                     this.game.player.camera.rotation.order = 'YXZ';
                     
-                    this.game.player.camera.rotation.x = data.rotation.x || 0;
-                    this.game.player.camera.rotation.y = data.rotation.y || 0;
+                    const pitch = data.rotation.x || 0;
+                    const yaw = data.rotation.y || 0;
+
+                    // Clamp pitch to avoid camera flipping
+                    this.game.player.camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+                    this.game.player.camera.rotation.y = yaw;
                     this.game.player.camera.rotation.z = 0; // Ensure no roll
                     
                     this.game.player.velocity.set(0, 0, 0);

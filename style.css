@@ -491,3 +491,78 @@ button:active {
     border-color: var(--color-border);
 }
 
+
+/* --- Mobile Controls --- */
+#mobile-controls {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* Let touches pass through to canvas for looking */
+  z-index: 100;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+#joystick-zone {
+  position: absolute;
+  bottom: 50px;
+  left: 50px;
+  width: 150px;
+  height: 150px;
+  pointer-events: auto; /* Capture touches for joystick */
+}
+
+#mobile-buttons {
+  position: absolute;
+  bottom: 50px;
+  right: 50px;
+  display: flex;
+  gap: 20px;
+  pointer-events: auto;
+}
+
+.mobile-btn {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  color: white;
+  font-weight: bold;
+  font-family: var(--font-main);
+  backdrop-filter: blur(4px);
+  touch-action: manipulation;
+}
+
+.mobile-btn:active {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+#mobile-top-left {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  gap: 10px;
+  pointer-events: auto;
+  margin-top: env(safe-area-inset-top);
+}
+
+.mobile-btn-small {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  font-weight: bold;
+  font-family: var(--font-mono);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}

@@ -97,7 +97,7 @@ Avant de déployer, assurez-vous que l'URL du WebSocket dans `src/NetworkManager
 // Changer :
 const wsUrl = 'ws://127.0.0.1:8000/ws/game/';
 // Par votre IP/Domaine de prod :
-const wsUrl = 'ws://148.230.117.98:8000/ws/game/'; // Exemple
+const wsUrl = 'ws://148.230.117.98:8011/ws/game/'; // Exemple
 ```
 
 ---

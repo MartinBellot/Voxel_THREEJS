@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import nipplejs from 'nipplejs';
 import { Physics } from './Physics.js';
 import { BlockType } from '../World/Block.js';
 import { Inventory } from '../Inventory.js';
@@ -11,6 +12,7 @@ export class Player {
   constructor(game) {
     this.game = game;
     this.camera = game.camera;
+    this.camera.rotation.order = 'YXZ';
     
     this.controls = new PointerLockControls(this.camera, document.body);
     
@@ -42,6 +44,12 @@ export class Player {
     this.setupInputs();
     this.setupHighlight();
     
+    // Mobile Check
+    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (this.isMobile) {
+        this.setupMobileControls();
+    }
+    
     // Position initiale
     this.camera.position.set(0, 80, 0); // Plus haut pour éviter de spawner dans le sol
     
@@ -58,6 +66,142 @@ export class Player {
   }
 
   // setupUI removed - handled by InventoryUI
+
+  setupMobileControls() {
+    const mobileControls = document.getElementById('mobile-controls');
+    if (mobileControls) mobileControls.style.display = 'block';
+
+    // Joystick
+    const zone = document.getElementById('joystick-zone');
+    if (zone) {
+        const manager = nipplejs.create({
+            zone: zone,
+            mode: 'static',
+            position: { left: '50%', top: '50%' },
+            color: 'white'
+        });
+
+        manager.on('move', (evt, data) => {
+            const rad = data.angle.radian;
+            const x = Math.cos(rad);
+            const y = Math.sin(rad);
+            
+            // Threshold to determine direction
+            this.moveForward = y > 0.3;
+            this.moveBackward = y < -0.3;
+            this.moveRight = x > 0.3; // Joystick Right is Move Right
+            this.moveLeft = x < -0.3;
+        });
+
+        manager.on('end', () => {
+            this.moveForward = false;
+            this.moveBackward = false;
+            this.moveLeft = false;
+            this.moveRight = false;
+        });
+    }
+
+    // Buttons
+    const btnJump = document.getElementById('btn-jump');
+    if (btnJump) {
+        btnJump.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (this.flyMode) {
+                this.moveUp = true;
+            } else if (this.physics.inWater) {
+                this.canJump = true;
+            } else if (this.canJump) {
+                this.velocity.y = 9.0;
+                this.canJump = false;
+            }
+        });
+        btnJump.addEventListener('touchend', (e) => {
+             e.preventDefault();
+             this.moveUp = false;
+        });
+    }
+
+    const btnAction = document.getElementById('btn-action');
+    if (btnAction) {
+        btnAction.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.placeBlock();
+        });
+    }
+
+    // Console Toggle
+    const btnConsole = document.getElementById('btn-console-toggle');
+    if (btnConsole) {
+        btnConsole.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (this.game.console) {
+                if (this.game.console.isOpen) {
+                    this.game.console.close();
+                } else {
+                    this.game.console.open();
+                }
+            }
+        });
+    }
+
+    // Inventory Toggle
+    const btnInventory = document.getElementById('btn-inventory-toggle');
+    if (btnInventory) {
+        btnInventory.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.inventoryUI.toggle();
+        });
+    }
+
+    // Touch Look
+    let lastTouchX = 0;
+    let lastTouchY = 0;
+    
+    document.addEventListener('touchstart', (e) => {
+        // Ignore if touching joystick or buttons
+        if (e.target.closest('#joystick-zone') || e.target.closest('#mobile-buttons')) return;
+        
+        if (e.touches.length > 0) {
+            lastTouchX = e.touches[0].pageX;
+            lastTouchY = e.touches[0].pageY;
+            this.touchStartTime = Date.now();
+        }
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+        if (e.target.closest('#joystick-zone') || e.target.closest('#mobile-buttons')) return;
+        
+        if (e.touches.length > 0) {
+            const touchX = e.touches[0].pageX;
+            const touchY = e.touches[0].pageY;
+            
+            const deltaX = touchX - lastTouchX;
+            const deltaY = touchY - lastTouchY;
+            
+            // Sensitivity
+            const sensitivity = 0.005;
+            
+            this.camera.rotation.y -= deltaX * sensitivity;
+            this.camera.rotation.x -= deltaY * sensitivity;
+            
+            // Clamp pitch
+            this.camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.camera.rotation.x));
+            
+            lastTouchX = touchX;
+            lastTouchY = touchY;
+        }
+    }, { passive: false });
+    
+    document.addEventListener('touchend', (e) => {
+         if (e.target.closest('#joystick-zone') || e.target.closest('#mobile-buttons')) return;
+         
+         // Detect tap for breaking block
+         const touchDuration = Date.now() - this.touchStartTime;
+         if (touchDuration < 200) { // Short tap
+             this.breakBlock();
+         }
+    });
+  }
 
   setupInputs() {
     this.controls.addEventListener('lock', () => {
@@ -322,7 +466,7 @@ export class Player {
   update(delta) {
     this.updateHighlight();
 
-    if (this.controls.isLocked === true) {
+    if (this.controls.isLocked === true || this.isMobile) {
       
       // FOV Effect for sprinting
       const targetFOV = this.isSprinting ? 85 : 75;
