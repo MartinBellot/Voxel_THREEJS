@@ -7,6 +7,7 @@ import { Inventory } from '../Inventory.js';
 import { InventoryUI } from '../InventoryUI.js';
 import { ItemDefinitions } from '../Item.js';
 import { DroppedItem } from '../World/DroppedItem.js';
+import { HeldItem } from './HeldItem.js';
 
 export class Player {
   constructor(game) {
@@ -41,6 +42,11 @@ export class Player {
     this.inventory = new Inventory();
     this.inventoryUI = new InventoryUI(this.game, this.inventory);
     
+    this.heldItem = new HeldItem(this.game, this);
+    this.lastSelectedSlot = -1;
+    this.lastItemType = null;
+    this.lastItemCount = -1;
+
     this.setupInputs();
     this.setupHighlight();
     
@@ -425,7 +431,9 @@ export class Player {
         }
 
         const blockType = this.inventory.getSelectedBlockType(ItemDefinitions);
-        if (blockType) {
+        const itemDef = ItemDefinitions[this.inventory.getItem(this.inventory.selectedSlot)?.type];
+        
+        if (blockType && itemDef && itemDef.isPlaceable) {
           this.game.world.setBlock(x, y, z, blockType);
           
           if (this.game.networkManager && this.game.networkManager.connected) {
@@ -458,13 +466,33 @@ export class Player {
       
       this.highlightMesh.position.set(x + 0.5, y + 0.5, z + 0.5);
       this.highlightMesh.visible = true;
+      this.lookingAtBlock = { x, y, z };
     } else {
       this.highlightMesh.visible = false;
+      this.lookingAtBlock = null;
     }
   }
 
   update(delta) {
     this.updateHighlight();
+
+    // Update Held Item
+    const selectedItem = this.inventory.getItem(this.inventory.selectedSlot);
+    const currentItemType = selectedItem ? selectedItem.type : null;
+    const currentItemCount = selectedItem ? selectedItem.count : 0;
+
+    if (this.inventory.selectedSlot !== this.lastSelectedSlot || 
+        currentItemType !== this.lastItemType ||
+        currentItemCount !== this.lastItemCount) {
+        
+        this.heldItem.setItem(currentItemType);
+        
+        this.lastSelectedSlot = this.inventory.selectedSlot;
+        this.lastItemType = currentItemType;
+        this.lastItemCount = currentItemCount;
+    }
+    
+    this.heldItem.update(delta);
 
     if (this.controls.isLocked === true || this.isMobile) {
       

@@ -19,7 +19,13 @@ export const BlockType = {
   DARK_OAK_LOG: 17,
   DARK_OAK_LEAVES: 18,
   CLOUD: 19,
-  TORCH: 100
+  TORCH: 100,
+  CARROT: 200,
+  // New Mushroom Biome Blocks
+  MUSHROOM_STEM_PORE: 20,
+  RED_MUSHROOM_BLOCK: 21,
+  BROWN_MUSHROOM_BLOCK: 22,
+  SPORE_BLOCK: 23
 };
 
 export const BlockModels = {
@@ -74,9 +80,26 @@ export const BlockDefinitions = {
     } 
 },
   [BlockType.SNOW]: { color: 0xFFFFFF, visible: true, model: BlockModels.CUBE, textures: { all: 'snow.png' } },
-  [BlockType.MUSHROOM_STEM]: { color: 0xD7CCC8, visible: true, model: BlockModels.CUBE },
+  [BlockType.MUSHROOM_STEM]: { 
+    color: 0xD7CCC8, 
+    visible: true, 
+    model: BlockModels.CUBE,
+    // TODO: Add mushroom_stem.png texture
+    textures: { all: 'mushroom_stem.png' } 
+  },
   [BlockType.MUSHROOM_CAP]: { color: 0xE53935, visible: true, model: BlockModels.CUBE }, // Red mushroom
-  [BlockType.MYCELIUM]: { color: 0x7E57C2, visible: true, model: BlockModels.CUBE }, // Purple grass
+  [BlockType.CARROT]: { color: 0xFFA500, visible: false }, // Item only
+  [BlockType.MYCELIUM]: { 
+    color: 0x7E57C2, 
+    visible: true, 
+    model: BlockModels.CUBE,
+    // TODO: Add mycelium_top.png, mycelium_side.png textures
+    textures: {
+      top: 'mycelium_top.png',
+      side: 'mycelium_side.png',
+      bottom: 'dirt.png'
+    }
+  }, 
   [BlockType.COAL_ORE]: { color: 0x111111, visible: true, model: BlockModels.CUBE, textures: { all: 'coal_ore.png' } }, // Black coal block
   [BlockType.MAGMA]: { color: 0xFF4500, visible: true, model: BlockModels.CUBE, textures: { all: 'stone.png' } }, // Orange-Red, reusing stone texture
   [BlockType.DARK_OAK_LOG]: { 
@@ -96,5 +119,34 @@ export const BlockDefinitions = {
     }
   },
   [BlockType.DARK_OAK_LEAVES]: { color: 0x1B5E20, visible: true, model: BlockModels.CUBE, textures: { all: 'spruce_leaves.png' } },
-  [BlockType.TORCH]: { color: 0xFFD700, visible: true, light: 15, transparent: true, model: BlockModels.TORCH } // Gold color for torch
+  [BlockType.TORCH]: { color: 0xFFD700, visible: true, light: 15, transparent: true, model: BlockModels.TORCH }, // Gold color for torch
+  
+  // New Mushroom Biome Blocks Definitions
+  [BlockType.MUSHROOM_STEM_PORE]: { 
+    color: 0xCFCFCF, 
+    visible: true, 
+    model: BlockModels.CUBE,
+    // TODO: Add mushroom_block_inside.png texture (pores)
+    textures: { all: 'mushroom_block_inside.png' }
+  },
+  [BlockType.RED_MUSHROOM_BLOCK]: { 
+    color: 0xC62828, 
+    visible: true, 
+    model: BlockModels.CUBE,
+    textures: { all: 'red_mushroom_block.png' }
+  },
+  [BlockType.BROWN_MUSHROOM_BLOCK]: { 
+    color: 0x5D4037, 
+    visible: true, 
+    model: BlockModels.CUBE,
+    // TODO: Add brown_mushroom_block.png texture
+    textures: { all: 'brown_mushroom_block.png' }
+  },
+  [BlockType.SPORE_BLOCK]: { 
+    color: 0x9C27B0, 
+    visible: true, 
+    model: BlockModels.CUBE,
+    // TODO: Add spore_block.png texture (maybe animated later?)
+    textures: { all: 'spore_block.png' }
+  }
 };

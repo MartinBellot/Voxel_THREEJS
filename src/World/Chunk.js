@@ -128,7 +128,7 @@ export class Chunk {
                    this.data[index] = BlockType.SAND;
                } else if (biome === 'Ocean') {
                    this.data[index] = BlockType.SAND;
-               } else if (biome === 'Mushroom') {
+               } else if (biome === 'Mushrooms') {
                    if (y === surfaceHeight - 1) {
                        this.data[index] = BlockType.MYCELIUM;
                    } else {
@@ -264,7 +264,25 @@ export class Chunk {
             const volcanoData = this.world.getVolcanoData(worldX, worldZ);
             const isVolcano = volcanoData.center && volcanoData.dist < 150;
 
-            if (biome === 'Pine Forest' && !isVolcano) {
+            if (biome === 'Mushrooms' && !isVolcano) {
+                const mushroomNoise = this.world.noise2D(worldX * 0.1, worldZ * 0.1);
+                const pseudoRandom = Math.abs(Math.sin(worldX * 12.9898 + worldZ * 78.233) * 43758.5453) % 1;
+                
+                // Giant Mushrooms
+                if (mushroomNoise > 0.3 && pseudoRandom > 0.95) {
+                    const type = pseudoRandom > 0.97 ? 'RED' : 'BROWN';
+                    this.addGiantMushroom(x, surfaceHeight, z, type);
+                }
+                
+                // Spores on ground
+                if (pseudoRandom < 0.05) {
+                     const index = this.getBlockIndex(x, surfaceHeight, z);
+                     // Only place if air above
+                     if (this.getBlock(x, surfaceHeight, z) === BlockType.AIR) {
+                        this.data[index] = BlockType.SPORE_BLOCK;
+                     }
+                }
+            } else if (biome === 'Pine Forest' && !isVolcano) {
                 const treeNoise = this.world.noise2D(worldX * 0.1, worldZ * 0.1);
                 const pseudoRandom = Math.abs(Math.sin(worldX * 12.9898 + worldZ * 78.233) * 43758.5453) % 1;
                 const hasTree = treeNoise > 0.4 && pseudoRandom > 0.85;
@@ -351,6 +369,55 @@ export class Chunk {
       for (let x = centerX - 2; x <= centerX + 2; x++) {
           for (let z = centerZ - 2; z <= centerZ + 2; z++) {
               this.setBlockLocal(x, capY, z, BlockType.MUSHROOM_CAP);
+          }
+      }
+  }
+
+  addGiantMushroom(x, y, z, type) {
+      const height = 4 + Math.floor(Math.random() * 3);
+      
+      // Stem
+      for (let i = 0; i < height; i++) {
+          this.setBlockLocal(x, y + i, z, BlockType.MUSHROOM_STEM);
+      }
+      
+      // Cap
+      const capBlock = type === 'RED' ? BlockType.RED_MUSHROOM_BLOCK : BlockType.BROWN_MUSHROOM_BLOCK;
+      const capY = y + height;
+      
+      if (type === 'RED') {
+          // Red mushroom cap (more rounded/flat top)
+          // 3x3 or 5x5
+          for (let dx = -2; dx <= 2; dx++) {
+              for (let dz = -2; dz <= 2; dz++) {
+                  // Skip corners for rounded look
+                  if (Math.abs(dx) === 2 && Math.abs(dz) === 2) continue;
+                  
+                  this.setBlockLocal(x + dx, capY, z + dz, capBlock);
+              }
+          }
+          // Top layer
+          for (let dx = -1; dx <= 1; dx++) {
+              for (let dz = -1; dz <= 1; dz++) {
+                  this.setBlockLocal(x + dx, capY + 1, z + dz, capBlock);
+              }
+          }
+          
+          // Add pores underneath cap (optional detail)
+          for (let dx = -1; dx <= 1; dx++) {
+              for (let dz = -1; dz <= 1; dz++) {
+                  if (dx === 0 && dz === 0) continue; // Stem is here
+                  this.setBlockLocal(x + dx, capY - 1, z + dz, BlockType.MUSHROOM_STEM_PORE);
+              }
+          }
+
+      } else {
+          // Brown mushroom cap (flat)
+          for (let dx = -3; dx <= 3; dx++) {
+              for (let dz = -3; dz <= 3; dz++) {
+                  if (Math.abs(dx) + Math.abs(dz) > 4) continue; // Diamond/Circle shape
+                  this.setBlockLocal(x + dx, capY, z + dz, capBlock);
+              }
           }
       }
   }

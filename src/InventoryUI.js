@@ -12,6 +12,21 @@ export class InventoryUI {
     this.grid = document.getElementById('inventory-grid');
     this.hotbarContainer = document.getElementById('toolbar');
     
+    // Create Tooltip Element
+    this.tooltip = document.createElement('div');
+    this.tooltip.id = 'inventory-tooltip';
+    this.tooltip.style.position = 'absolute';
+    this.tooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    this.tooltip.style.color = 'white';
+    this.tooltip.style.padding = '5px 10px';
+    this.tooltip.style.borderRadius = '4px';
+    this.tooltip.style.pointerEvents = 'none'; // Don't block mouse events
+    this.tooltip.style.display = 'none';
+    this.tooltip.style.zIndex = '1000';
+    this.tooltip.style.fontFamily = 'Minecraft, monospace';
+    this.tooltip.style.fontSize = '14px';
+    document.body.appendChild(this.tooltip);
+
     this.setupCreativeMenu();
     this.setupEventListeners();
     this.updateHotbar();
@@ -34,13 +49,36 @@ export class InventoryUI {
       // Visual representation
       const icon = document.createElement('div');
       icon.className = 'item-icon';
-      if (blockDef && blockDef.color) {
+      
+      if (def.texture) {
+          icon.style.backgroundImage = `url('assets/textures/item/${def.texture}')`;
+          icon.style.backgroundSize = 'contain';
+          icon.style.backgroundRepeat = 'no-repeat';
+          icon.style.backgroundPosition = 'center';
+          icon.style.backgroundColor = 'transparent';
+      } else if (blockDef && blockDef.color) {
         icon.style.backgroundColor = '#' + blockDef.color.toString(16).padStart(6, '0');
       }
       slot.appendChild(icon);
       
       // Tooltip
-      slot.title = def.name;
+      // slot.title = def.name; // Disable native tooltip
+
+      slot.addEventListener('mouseenter', (e) => {
+          this.tooltip.innerText = def.name;
+          this.tooltip.style.display = 'block';
+          this.tooltip.style.left = (e.clientX + 15) + 'px';
+          this.tooltip.style.top = (e.clientY + 15) + 'px';
+      });
+
+      slot.addEventListener('mousemove', (e) => {
+          this.tooltip.style.left = (e.clientX + 15) + 'px';
+          this.tooltip.style.top = (e.clientY + 15) + 'px';
+      });
+
+      slot.addEventListener('mouseleave', () => {
+          this.tooltip.style.display = 'none';
+      });
 
       slot.addEventListener('mousedown', (e) => {
         // In creative, clicking a slot gives you a stack of that item
@@ -167,7 +205,16 @@ export class InventoryUI {
       const def = ItemDefinitions[this.cursorItem.type];
       const blockDef = BlockDefinitions[def.blockType];
       
-      cursor.style.backgroundColor = blockDef && blockDef.color ? '#' + blockDef.color.toString(16).padStart(6, '0') : '#fff';
+      if (def.texture) {
+          cursor.style.backgroundImage = `url('assets/textures/item/${def.texture}')`;
+          cursor.style.backgroundSize = 'contain';
+          cursor.style.backgroundRepeat = 'no-repeat';
+          cursor.style.backgroundPosition = 'center';
+          cursor.style.backgroundColor = 'transparent';
+      } else {
+          cursor.style.backgroundImage = 'none';
+          cursor.style.backgroundColor = blockDef && blockDef.color ? '#' + blockDef.color.toString(16).padStart(6, '0') : '#fff';
+      }
       cursor.innerText = this.cursorItem.count > 1 ? this.cursorItem.count : '';
     } else {
       cursor.style.display = 'none';
@@ -213,7 +260,14 @@ export class InventoryUI {
       
       const icon = document.createElement('div');
       icon.className = 'item-icon';
-      if (blockDef && blockDef.color) {
+      
+      if (def.texture) {
+          icon.style.backgroundImage = `url('assets/textures/item/${def.texture}')`;
+          icon.style.backgroundSize = 'contain';
+          icon.style.backgroundRepeat = 'no-repeat';
+          icon.style.backgroundPosition = 'center';
+          icon.style.backgroundColor = 'transparent';
+      } else if (blockDef && blockDef.color) {
         icon.style.backgroundColor = '#' + blockDef.color.toString(16).padStart(6, '0');
       }
       

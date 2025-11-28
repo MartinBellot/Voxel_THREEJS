@@ -39,6 +39,7 @@ export class World {
       this.noise3D = createNoise3D(() => rng.random());
       this.noise2D = createNoise2D(() => rng.random());
       this.biomeNoise = createNoise2D(() => rng.random());
+      this.humidityNoise = createNoise2D(() => rng.random());
   }
 
   getVolcanoData(x, z) {
@@ -75,7 +76,7 @@ export class World {
   }
 
   getIslandData(x, z) {
-      const gridSize = 600; // Very large grid for rarity
+      const gridSize = 300; // Very large grid for rarity
       const gridX = Math.floor(x / gridSize);
       const gridZ = Math.floor(z / gridSize);
       
@@ -149,44 +150,45 @@ export class World {
   }
 
   getBiome(x, z) {
-    // Echelle très large pour les biomes (500-1000 blocs)
-    const value = this.biomeNoise(x * 0.001, z * 0.001);
-    if (value < -0.2) return 'Ocean';
-    if (value < -0.1) return 'Beach';
-    if (value < 0.05) return 'Desert';
-    if (value < 0.5) return 'Pine Forest';
-    return 'Mountain';
+    const elevation = this.biomeNoise(x * 0.001, z * 0.001);
+    const humidity = this.humidityNoise(x * 0.001, z * 0.001);
+
+    if (elevation < -0.2) return 'Ocean';
+    if (elevation < -0.1) return 'Beach';
+    
+    if (elevation > 0.6) return 'Mountain';
+
+    // Land biomes based on humidity
+    if (humidity < -0.2) return 'Desert';
+    if (humidity > 0.6) return 'Mushrooms';
+    return 'Pine Forest';
   }
 
   getBiomeData(x, z) {
-    const value = this.biomeNoise(x * 0.001, z * 0.001);
-    // Map noise value (-1 to 1) to temp/humidity
+    const elevation = this.biomeNoise(x * 0.001, z * 0.001);
+    const humidity = this.humidityNoise(x * 0.001, z * 0.001);
     
     let temperature = 0.5;
-    let humidity = 0.5;
-
-    if (value < -0.2) { // Ocean
+    
+    if (elevation < -0.2) { // Ocean
         temperature = 0.5;
-        humidity = 0.9;
-    } else if (value < -0.1) { // Beach
+    } else if (elevation < -0.1) { // Beach
         temperature = 0.8;
-        humidity = 0.4;
-    } else if (value < 0.05) { // Desert
-        temperature = 2.0; // Hot
-        humidity = 0.0; // Dry
-    } else if (value < 0.5) { // Pine Forest
-        temperature = 0.3; // Cold
-        humidity = 0.8; // Wet
-    } else { // Mountain
-        temperature = 0.2; // Very Cold
-        humidity = 0.3; // Dry-ish
+    } else if (elevation > 0.6) { // Mountain
+        temperature = 0.2;
+    } else {
+        // Land
+        if (humidity < -0.2) temperature = 2.0; // Desert
+        else if (humidity > 0.6) temperature = 0.6; // Mushrooms
+        else temperature = 0.3; // Pine Forest
     }
     
-    return { temperature, humidity };
+    return { temperature, humidity: (humidity + 1) / 2 };
   }
 
   getHeight(x, z) {
-    const noise = this.biomeNoise(x * 0.001, z * 0.001);
+    const elevation = this.biomeNoise(x * 0.001, z * 0.001);
+    const humidity = this.humidityNoise(x * 0.001, z * 0.001);
     const localNoise = this.noise2D(x * 0.02, z * 0.02); // Detail
     
     // Check for Volcano
@@ -232,19 +234,19 @@ export class World {
 
     let height = this.seaLevel; // Base sea level (30)
     
-    if (noise < -0.2) {
+    if (elevation < -0.2) {
         // Ocean
         // Smooth transition from -0.2 downwards
         // noise: -1 ... -0.2
         // t = 0 (at -0.2) to 1 (at -1)
         // height = 30 - t * depth
-        const t = (noise + 0.2) / -0.8; // 0 to 1 approx
+        const t = (elevation + 0.2) / -0.8; // 0 to 1 approx
         height = this.seaLevel - (t * 30) + (localNoise * 2); // Deeper oceans
-    } else if (noise < -0.1) {
+    } else if (elevation < -0.1) {
         // Beach
         // noise: -0.2 ... -0.1
         // height: 30 ... 32
-        const t = (noise + 0.2) / 0.1; // 0 to 1
+        const t = (elevation + 0.2) / 0.1; // 0 to 1
         height = this.seaLevel + (t * 3) + (localNoise * 1);
     } else {
         // Land
@@ -252,12 +254,12 @@ export class World {
         // height: 32 ... up
         
         // Base land rise
-        height = this.seaLevel + 3 + (noise + 0.1) * 30; 
+        height = this.seaLevel + 3 + (elevation + 0.1) * 30; 
         
         // Biome specific additions
-        if (noise > 0.5) { // Mountain
+        if (elevation > 0.6) { // Mountain
              // Exponential mountain growth
-             const mountainFactor = (noise - 0.5) * 2; // 0 to 1
+             const mountainFactor = (elevation - 0.6) * 2.5; // Adjusted for new range
              // Target: 100 to 250
              // Base height is around 60-70 here.
              // We add up to 180 more.
@@ -268,7 +270,14 @@ export class World {
                  height = Math.max(height, 100 + localNoise * 10);
              }
         } else {
-             height += localNoise * 5; // Normal terrain roughness
+             // Land biomes terrain
+             if (humidity < -0.2) { // Desert
+                 height += localNoise * 2; // Flat
+             } else if (humidity > 0.6) { // Mushrooms
+                 height += localNoise * 8; // Rolling hills
+             } else { // Pine Forest
+                 height += localNoise * 5; // Normal
+             }
         }
     }
     

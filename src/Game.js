@@ -7,6 +7,8 @@ import { TextureManager } from './Utils/TextureManager.js';
 import { NetworkManager } from './NetworkManager.js';
 import { PauseMenu } from './PauseMenu.js';
 import { DroppedItem } from './World/DroppedItem.js';
+import { BlockType } from './World/Block.js';
+import { Pig } from './Entities/Pig.js';
 
 export class Game {
   constructor() {
@@ -24,6 +26,7 @@ export class Game {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(1); // Performance optimization: use 1 instead of devicePixelRatio
     this.renderer.shadowMap.enabled = true;
+    this.renderer.autoClear = false; // Manual clear for overlay rendering
 
     this.clock = new THREE.Clock();
     this.frames = 0;
@@ -47,6 +50,7 @@ export class Game {
     this.pauseMenu = new PauseMenu(this);
     
     this.droppedItems = [];
+    this.entities = [];
 
     // Network
     this.networkManager = new NetworkManager(this);
@@ -255,6 +259,25 @@ export class Game {
     if (document.getElementById('biome')) {
         document.getElementById('biome').innerText = biome;
     }
+
+    if (this.player.lookingAtBlock) {
+        const { x, y, z } = this.player.lookingAtBlock;
+        const blockId = this.world.getBlock(x, y, z);
+        let blockName = 'UNKNOWN';
+        for (const [name, value] of Object.entries(BlockType)) {
+            if (value === blockId) {
+                blockName = name;
+                break;
+            }
+        }
+        if (document.getElementById('target-block')) {
+            document.getElementById('target-block').innerText = `${blockName} (${x}, ${y}, ${z})`;
+        }
+    } else {
+        if (document.getElementById('target-block')) {
+            document.getElementById('target-block').innerText = 'None';
+        }
+    }
       
     // document.getElementById('chunk-count').innerText = this.world.chunks.size;
   }
@@ -386,7 +409,17 @@ export class Game {
     // Lock pointer to start playing
     this.player.controls.lock();
     
+    // Spawn a test pig
+    this.spawnEntity('pig', new THREE.Vector3(0, 50, 0));
+    
     // this.isPlaying = true; // Will be set by NetworkManager on player_init
+  }
+
+  spawnEntity(type, position) {
+      if (type === 'pig') {
+          const pig = new Pig(this, position);
+          this.entities.push(pig);
+      }
   }
 
   animate() {
@@ -397,6 +430,9 @@ export class Game {
     if (this.isPlaying) {
       this.player.update(delta);
       this.world.update(delta);
+
+      // Update entities
+      this.entities.forEach(entity => entity.update(delta));
 
       // Update dropped items
       for (let i = this.droppedItems.length - 1; i >= 0; i--) {
@@ -413,6 +449,11 @@ export class Game {
     
     this.updateDebugInfo();
 
+    this.renderer.clear();
     this.renderer.render(this.scene, this.camera);
+    
+    if (this.player && this.player.heldItem) {
+        this.player.heldItem.render(this.renderer);
+    }
   }
 }

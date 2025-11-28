@@ -12,7 +12,7 @@ export class Console {
     }
 
     connect() {
-        const wsUrl = 'ws://148.230.117.98:8011/ws/console/';
+        const wsUrl = 'ws://127.0.0.1:8000/ws/console/';
         console.log(`Connecting to Console WebSocket: ${wsUrl}`);
         
         this.socket = new WebSocket(wsUrl);
