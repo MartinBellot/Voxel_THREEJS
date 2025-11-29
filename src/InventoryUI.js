@@ -1,5 +1,7 @@
 import { ItemDefinitions } from './Item.js';
 import { BlockDefinitions } from './World/Block.js';
+import * as THREE from 'three';
+import { PlayerMesh } from './Player/PlayerMesh.js';
 
 export class InventoryUI {
   constructor(game, inventory) {
@@ -29,7 +31,122 @@ export class InventoryUI {
 
     this.setupCreativeMenu();
     this.setupEventListeners();
+    this.setupCharacterPreview();
     this.updateHotbar();
+  }
+
+  setupCharacterPreview() {
+    const inventoryWindow = this.container.querySelector('.inventory-window');
+    
+    // Create Top Section Wrapper
+    const topSection = document.createElement('div');
+    topSection.className = 'inventory-top-section';
+    
+    // Character Preview Container
+    const charContainer = document.createElement('div');
+    charContainer.className = 'character-preview-container';
+    
+    // Armor Slots
+    const armorSlots = document.createElement('div');
+    armorSlots.className = 'armor-slots';
+    // 3 slots for armor
+    for (let i = 0; i < 3; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'slot armor-slot';
+        // Optional: Add placeholder icons here
+        armorSlots.appendChild(slot);
+    }
+    
+    // Canvas Container
+    const canvasContainer = document.createElement('div');
+    canvasContainer.id = 'character-preview-canvas-container';
+    
+    charContainer.appendChild(armorSlots);
+    charContainer.appendChild(canvasContainer);
+    
+    // Move Creative Grid to Top Section
+    const creativeGrid = document.getElementById('creative-grid');
+    const creativeHeader = inventoryWindow.querySelector('h3'); // "Creative Selection"
+    
+    const creativeSection = document.createElement('div');
+    creativeSection.className = 'creative-section';
+    if (creativeHeader) creativeSection.appendChild(creativeHeader);
+    if (creativeGrid) creativeSection.appendChild(creativeGrid);
+    
+    topSection.appendChild(charContainer);
+    topSection.appendChild(creativeSection);
+    
+    // Insert topSection at the beginning
+    inventoryWindow.insertBefore(topSection, inventoryWindow.firstChild);
+    
+    // Initialize Three.js Scene for Preview
+    this.previewScene = new THREE.Scene();
+    // this.previewScene.background = new THREE.Color(0x000000); // Transparent or dark
+    
+    // Camera
+    const aspect = 150 / 200; 
+    this.previewCamera = new THREE.PerspectiveCamera(50, aspect, 0.1, 100);
+    this.previewCamera.position.set(0, 1, 3.5);
+    this.previewCamera.lookAt(0, 0.9, 0);
+    
+    // Renderer
+    this.previewRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    this.previewRenderer.setSize(150, 200);
+    this.previewRenderer.setClearColor(0x000000, 0);
+    canvasContainer.appendChild(this.previewRenderer.domElement);
+    
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    this.previewScene.add(ambientLight);
+    
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    dirLight.position.set(2, 5, 5);
+    this.previewScene.add(dirLight);
+    
+    // Player Mesh
+    this.previewPlayerMesh = new PlayerMesh(this.previewScene);
+    this.previewPlayerMesh.mesh.rotation.y = Math.PI; // Initialize facing camera
+    this.previewScene.add(this.previewPlayerMesh.mesh);
+    
+    // Mouse tracking for rotation
+    this.mouseX = 0;
+    this.mouseY = 0;
+    document.addEventListener('mousemove', (e) => {
+        this.mouseX = e.clientX;
+        this.mouseY = e.clientY;
+    });
+  }
+
+  animatePreview() {
+    if (!this.isOpen) return;
+    
+    this.previewAnimationId = requestAnimationFrame(() => this.animatePreview());
+    
+    if (this.previewPlayerMesh && this.previewPlayerMesh.mesh) {
+        // Calculate mouse position relative to the preview canvas center
+        const rect = this.previewRenderer.domElement.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        const mouseX = this.mouseX || centerX;
+        const mouseY = this.mouseY || centerY;
+        
+        const dx = mouseX - centerX;
+        const dy = mouseY - centerY;
+        
+        // Rotate 180 degrees (Math.PI) to face camera
+        // Invert dx for correct left/right tracking when facing camera
+        const yaw = Math.PI + (dx / 200); 
+        let pitch = -(dy / 200);
+        
+        // Clamp pitch to prevent head from rotating too far (limit to ~60 degrees)
+        const maxPitch = Math.PI / 3;
+        pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
+        
+        this.previewPlayerMesh.update(0.016, false, false, yaw, pitch);
+    }
+    
+    this.previewRenderer.render(this.previewScene, this.previewCamera);
   }
 
   setupCreativeMenu() {
@@ -287,8 +404,10 @@ export class InventoryUI {
     if (this.isOpen) {
       this.game.player.controls.unlock();
       this.updateSlots();
+      this.animatePreview();
     } else {
       this.game.player.controls.lock();
+      if (this.previewAnimationId) cancelAnimationFrame(this.previewAnimationId);
       // Drop held item if any? Or keep it. For now keep it.
     }
   }
