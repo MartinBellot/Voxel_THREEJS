@@ -299,6 +299,21 @@ export class World {
     });
   }
 
+  setRenderDistance(distance) {
+    this.renderDistance = distance;
+    this.farRenderDistance = distance + 2; // Optimized: Reduced buffer from +4 to +2
+    
+    // Update Fog to match new render distance
+    const chunkSize = this.chunkSize;
+    const fogFar = this.farRenderDistance * chunkSize;
+    const fogNear = Math.max(0, (this.renderDistance - 1) * chunkSize);
+    
+    if (this.game.scene.fog) {
+        this.game.scene.fog.near = fogNear;
+        this.game.scene.fog.far = fogFar;
+    }
+  }
+
   update(delta) {
     const playerPos = this.game.player.camera.position;
 

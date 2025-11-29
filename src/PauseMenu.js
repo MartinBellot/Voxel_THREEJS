@@ -38,11 +38,7 @@ export class PauseMenu {
       
       // Update game render distance
       if (this.game.world) {
-        this.game.world.renderDistance = value;
-        this.game.world.farRenderDistance = value + 4;
-        // We don't force immediate update here to avoid lag while dragging,
-        // but we could set a flag or debounce it.
-        // The World update loop handles loading new chunks based on this.
+        this.game.world.setRenderDistance(value);
       }
     });
   }

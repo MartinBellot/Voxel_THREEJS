@@ -4,7 +4,8 @@ export const ItemType = {
   ...BlockType,
   TORCH: 100,
   CARROT: 200,
-  SWORD: 300
+  SWORD: 300,
+  SPAWN_PIG: 400
 };
 
 export const ItemDefinitions = {
@@ -27,5 +28,6 @@ export const ItemDefinitions = {
   // Special Items
   [ItemType.TORCH]: { name: 'Torch', blockType: 100, isPlaceable: true },
   [ItemType.CARROT]: { name: 'Carrot', isPlaceable: false, texture: 'carrot.png' },
-  [ItemType.SWORD]: { name: 'Sword', isPlaceable: false, texture: 'sword.png' }
+  [ItemType.SWORD]: { name: 'Sword', isPlaceable: false, texture: 'sword.png' },
+  [ItemType.SPAWN_PIG]: { name: 'Spawn Pig', isPlaceable: false, texture: '../entities/pig.png' }
 };

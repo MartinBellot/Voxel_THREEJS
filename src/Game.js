@@ -432,6 +432,7 @@ export class Game {
     if (this.isPlaying) {
       this.player.update(delta);
       this.world.update(delta);
+      this.networkManager.update(delta);
 
       // Update entities
       this.entities.forEach(entity => entity.update(delta));

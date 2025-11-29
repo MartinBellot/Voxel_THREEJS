@@ -5,9 +5,10 @@ import { Physics } from './Physics.js';
 import { BlockType } from '../World/Block.js';
 import { Inventory } from '../Inventory.js';
 import { InventoryUI } from '../InventoryUI.js';
-import { ItemDefinitions } from '../Item.js';
+import { ItemDefinitions, ItemType } from '../Item.js';
 import { DroppedItem } from '../World/DroppedItem.js';
 import { HeldItem } from './HeldItem.js';
+import { PlayerMesh } from './PlayerMesh.js';
 
 export class Player {
   constructor(game) {
@@ -15,7 +16,17 @@ export class Player {
     this.camera = game.camera;
     this.camera.rotation.order = 'YXZ';
     
-    this.controls = new PointerLockControls(this.camera, document.body);
+    this.playerMesh = new PlayerMesh(this.game.scene);
+    this.game.scene.add(this.playerMesh.mesh);
+    this.playerMesh.mesh.visible = false;
+    this.isThirdPerson = false;
+    this.eyePosition = new THREE.Vector3();
+    this.isCameraOffset = false;
+
+    // Virtual object for controls (Head Rotation)
+    this.controlsObject = new THREE.Object3D();
+    this.controlsObject.rotation.order = 'YXZ';
+    this.controls = new PointerLockControls(this.controlsObject, document.body);
     
     this.velocity = new THREE.Vector3();
     this.direction = new THREE.Vector3();
@@ -29,6 +40,7 @@ export class Player {
     this.isSprinting = false;
     this.canJump = false;
     this.flyMode = false;
+    this.lastSpacePressTime = 0;
     
     this.speed = 6.0;
     this.sprintSpeed = 10.0;
@@ -285,7 +297,27 @@ export class Player {
         case 'KeyD':
           this.moveRight = true;
           break;
+        case 'KeyP':
+          this.isThirdPerson = !this.isThirdPerson;
+          this.playerMesh.mesh.visible = this.isThirdPerson;
+          this.heldItem.mesh.visible = !this.isThirdPerson;
+          if (!this.isThirdPerson && this.isCameraOffset) {
+              this.camera.position.copy(this.eyePosition);
+              this.isCameraOffset = false;
+          }
+          break;
         case 'Space':
+          const now = Date.now();
+          if (now - this.lastSpacePressTime < 300) {
+            this.flyMode = !this.flyMode;
+            this.lastSpacePressTime = 0;
+            if (this.flyMode) {
+                this.velocity.y = 0;
+            }
+          } else {
+            this.lastSpacePressTime = now;
+          }
+
           if (this.flyMode) {
             this.moveUp = true;
           } else if (this.physics.inWater) {
@@ -402,6 +434,16 @@ export class Player {
         const y = Math.floor(target.y);
         const z = Math.floor(target.z);
         
+        // Check for Spawn Pig
+        const selectedItem = this.inventory.getItem(this.inventory.selectedSlot);
+        if (selectedItem && selectedItem.type === ItemType.SPAWN_PIG) {
+            // Spawn Pig
+            // Center of the block
+            const spawnPos = new THREE.Vector3(x + 0.5, y, z + 0.5);
+            this.game.spawnEntity('pig', spawnPos);
+            return;
+        }
+
         // Vérification de collision avec le joueur
         const playerPos = this.camera.position;
         const playerWidth = this.physics.width;
@@ -474,6 +516,16 @@ export class Player {
   }
 
   update(delta) {
+    // Restore camera position for physics/logic
+    if (this.isCameraOffset) {
+        this.camera.position.copy(this.eyePosition);
+        this.isCameraOffset = false;
+    }
+
+    // Sync camera rotation with controls if in 1st person
+    // In 3rd person, we'll override it later, but we need the "Head" rotation for logic
+    // Actually, let's just use controlsObject for logic.
+
     this.updateHighlight();
 
     // Update Held Item
@@ -514,7 +566,7 @@ export class Player {
       // La physique gérera les collisions et la gravité
       if (this.moveForward || this.moveBackward) {
         // On projette la direction de la caméra sur le plan XZ
-        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.controlsObject.quaternion);
         forward.y = 0;
         forward.normalize();
         
@@ -529,7 +581,7 @@ export class Player {
 
       if (this.moveLeft || this.moveRight) {
         // On calcule le vecteur "droite"
-        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.controlsObject.quaternion);
         right.y = 0;
         right.normalize();
         
@@ -575,13 +627,44 @@ export class Player {
                       z: this.camera.position.z
                   },
                   rotation: {
-                      x: this.camera.rotation.x,
-                      y: this.camera.rotation.y,
-                      z: this.camera.rotation.z
+                      x: this.controlsObject.rotation.x,
+                      y: this.controlsObject.rotation.y,
+                      z: this.controlsObject.rotation.z
                   }
               });
           }
       }
+    }
+
+    // Update Player Mesh
+    const isMoving = this.velocity.x !== 0 || this.velocity.z !== 0;
+    this.playerMesh.update(delta, isMoving, this.isSprinting, this.controlsObject.rotation.y, this.controlsObject.rotation.x);
+    
+    // Mesh Position (Feet)
+    const feetPos = this.camera.position.clone();
+    feetPos.y -= 1.6; // Eye height to feet
+    this.playerMesh.mesh.position.copy(feetPos);
+    
+    // Mesh Rotation is now handled inside PlayerMesh.update()
+
+    // Third Person Camera
+    if (this.isThirdPerson) {
+        this.eyePosition.copy(this.camera.position);
+        
+        // Calculate offset
+        // Back 5 units, Up 2 units for a plunging view
+        const offset = new THREE.Vector3(0, 0, 5);
+        offset.applyQuaternion(this.controlsObject.quaternion);
+        
+        this.camera.position.add(offset);
+        
+        // Look at the eye position
+        this.camera.lookAt(this.eyePosition);
+        
+        this.isCameraOffset = true;
+    } else {
+        // Sync camera rotation with controls
+        this.camera.quaternion.copy(this.controlsObject.quaternion);
     }
   }
 }

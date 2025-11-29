@@ -175,5 +175,9 @@ export class NetworkManager {
             remotePlayer.updatePosition(position, rotation);
         }
     }
+
+    update(delta) {
+        this.remotePlayers.forEach(player => player.update(delta));
+    }
 }
 

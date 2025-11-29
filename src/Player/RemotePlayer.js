@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PlayerMesh } from './PlayerMesh.js';
 
 export class RemotePlayer {
     constructor(game, data) {
@@ -9,11 +10,9 @@ export class RemotePlayer {
         // Group to hold mesh and label
         this.group = new THREE.Group();
 
-        // Simple mesh for now - Red box to distinguish
-        const geometry = new THREE.BoxGeometry(0.6, 1.8, 0.6);
-        const material = new THREE.MeshLambertMaterial({ color: 0xff0000 });
-        this.mesh = new THREE.Mesh(geometry, material);
-        this.mesh.position.y = 0.9; // Center vertically
+        // Player Mesh
+        this.playerMesh = new PlayerMesh(game.scene);
+        this.mesh = this.playerMesh.mesh;
         this.group.add(this.mesh);
 
         // Add username label
@@ -21,6 +20,9 @@ export class RemotePlayer {
 
         this.group.position.set(data.position.x, data.position.y, data.position.z);
         this.game.scene.add(this.group);
+        
+        this.isMoving = false;
+        this.lastUpdate = Date.now();
     }
 
     addLabel() {
@@ -49,8 +51,24 @@ export class RemotePlayer {
     }
 
     updatePosition(position, rotation) {
-        this.group.position.set(position.x, position.y, position.z);
-        // this.mesh.rotation.set(rotation.x, rotation.y, rotation.z); 
+        const newPos = new THREE.Vector3(position.x, position.y, position.z);
+        const dist = newPos.distanceTo(this.group.position);
+        
+        this.isMoving = dist > 0.01;
+        
+        this.group.position.copy(newPos);
+        if (rotation) {
+            this.mesh.rotation.y = rotation.y;
+        }
+        
+        this.lastUpdate = Date.now();
+    }
+    
+    update(delta) {
+        if (Date.now() - this.lastUpdate > 200) {
+            this.isMoving = false;
+        }
+        this.playerMesh.update(delta, this.isMoving);
     }
     
     dispose() {

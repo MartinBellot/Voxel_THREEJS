@@ -20,6 +20,9 @@ export class Chunk {
     this.topMap.fill(0);
     this.heightMap.fill(-1);
 
+    this.minY = this.height;
+    this.maxY = 0;
+
     this.generateData();
     this.generateMesh();
   }
@@ -86,6 +89,10 @@ export class Chunk {
         const noiseValue = this.world.noise3D(worldX * 0.05, 0, worldZ * 0.05); // Pour les grottes
         const surfaceHeight = this.world.getHeight(worldX, worldZ);
         
+        // Update bounds based on surface height (approximate, but safe start)
+        if (surfaceHeight > this.maxY) this.maxY = surfaceHeight;
+        if (0 < this.minY) this.minY = 0; // Bedrock is at 0
+
         // Check for Volcano
         const volcanoData = this.world.getVolcanoData(worldX, worldZ);
         const isVolcano = volcanoData.center && volcanoData.dist < 150;
@@ -257,6 +264,12 @@ export class Chunk {
     
     // Passe de décoration
     this.decorateChunk();
+
+    // Final bounds check (in case decoration added blocks higher/lower)
+    // We can just add a safety margin or scan. 
+    // DecorateChunk adds trees/mushrooms, usually +10 height max.
+    this.maxY = Math.min(this.height - 1, this.maxY + 20);
+    this.minY = Math.max(0, this.minY);
 
     // Generate Minimap Data
     for (let x = 0; x < this.size; x++) {
@@ -563,10 +576,25 @@ export class Chunk {
     const color = new THREE.Color();
     const textureManager = this.game.textureManager;
 
-    for (let x = 0; x < this.size; x++) {
-      for (let y = 0; y < this.height; y++) {
-        for (let z = 0; z < this.size; z++) {
-          const blockId = this.data[this.getBlockIndex(x, y, z)];
+    const size = this.size;
+    const height = this.height;
+    const data = this.data;
+    
+    // Optimization: Only iterate relevant height range
+    const startY = Math.max(0, this.minY);
+    const endY = Math.min(height, this.maxY + 1);
+
+    // Pre-calculate strides
+    const strideY = size;
+    const strideZ = size * height;
+
+    // Loop order Z, Y, X for cache locality (Linear memory access)
+    for (let z = 0; z < size; z++) {
+      for (let y = startY; y < endY; y++) {
+        for (let x = 0; x < size; x++) {
+          const index = x + strideY * y + strideZ * z;
+          const blockId = data[index];
+          
           if (blockId === BlockType.AIR) continue;
 
           const def = BlockDefinitions[blockId];
@@ -584,13 +612,13 @@ export class Chunk {
           let tintColor = null;
           if (def.textures && textureManager && textureManager.atlasTexture) {
              if (blockId === BlockType.GRASS) {
-                 const worldX = x + this.x * this.size;
-                 const worldZ = z + this.z * this.size;
+                 const worldX = x + this.x * size;
+                 const worldZ = z + this.z * size;
                  const biomeData = this.world.getBiomeData(worldX, worldZ);
                  tintColor = textureManager.getBiomeColor('grass', biomeData.temperature, biomeData.humidity);
              } else if (blockId === BlockType.LEAVES || blockId === BlockType.PINE_LEAVES) {
-                 const worldX = x + this.x * this.size;
-                 const worldZ = z + this.z * this.size;
+                 const worldX = x + this.x * size;
+                 const worldZ = z + this.z * size;
                  const biomeData = this.world.getBiomeData(worldX, worldZ);
                  tintColor = textureManager.getBiomeColor('foliage', biomeData.temperature, biomeData.humidity);
              }
@@ -600,32 +628,45 @@ export class Chunk {
           if (!isTorch && !isCactus) {
               // Check 6 faces
               // Right (x+1)
-              let neighbor = this.getBlock(x + 1, y, z);
+              let neighbor;
+              if (x < size - 1) neighbor = data[index + 1];
+              else neighbor = this.world.getBlock(this.x * size + x + 1, y, this.z * size + z);
+
               if (!(isWater && neighbor === BlockType.WATER) && this.shouldDrawFace(x + 1, y, z, neighbor)) {
                   this.addFace(x, y, z, 0, isWater ? waterPositions : positions, isWater ? waterNormals : normals, isWater ? waterColors : colors, isWater ? waterUvs : uvs, color, blockId, tintColor);
               }
               // Left (x-1)
-              neighbor = this.getBlock(x - 1, y, z);
+              if (x > 0) neighbor = data[index - 1];
+              else neighbor = this.world.getBlock(this.x * size + x - 1, y, this.z * size + z);
+
               if (!(isWater && neighbor === BlockType.WATER) && this.shouldDrawFace(x - 1, y, z, neighbor)) {
                   this.addFace(x, y, z, 1, isWater ? waterPositions : positions, isWater ? waterNormals : normals, isWater ? waterColors : colors, isWater ? waterUvs : uvs, color, blockId, tintColor);
               }
               // Top (y+1)
-              neighbor = this.getBlock(x, y + 1, z);
+              if (y < height - 1) neighbor = data[index + strideY];
+              else neighbor = BlockType.AIR;
+
               if (!(isWater && neighbor === BlockType.WATER) && this.shouldDrawFace(x, y + 1, z, neighbor)) {
                   this.addFace(x, y, z, 2, isWater ? waterPositions : positions, isWater ? waterNormals : normals, isWater ? waterColors : colors, isWater ? waterUvs : uvs, color, blockId, tintColor);
               }
               // Bottom (y-1)
-              neighbor = this.getBlock(x, y - 1, z);
+              if (y > 0) neighbor = data[index - strideY];
+              else neighbor = BlockType.BEDROCK; // Assume solid below
+
               if (!(isWater && neighbor === BlockType.WATER) && this.shouldDrawFace(x, y - 1, z, neighbor)) {
                   this.addFace(x, y, z, 3, isWater ? waterPositions : positions, isWater ? waterNormals : normals, isWater ? waterColors : colors, isWater ? waterUvs : uvs, color, blockId, tintColor);
               }
               // Front (z+1)
-              neighbor = this.getBlock(x, y, z + 1);
+              if (z < size - 1) neighbor = data[index + strideZ];
+              else neighbor = this.world.getBlock(this.x * size + x, y, this.z * size + z + 1);
+
               if (!(isWater && neighbor === BlockType.WATER) && this.shouldDrawFace(x, y, z + 1, neighbor)) {
                   this.addFace(x, y, z, 4, isWater ? waterPositions : positions, isWater ? waterNormals : normals, isWater ? waterColors : colors, isWater ? waterUvs : uvs, color, blockId, tintColor);
               }
               // Back (z-1)
-              neighbor = this.getBlock(x, y, z - 1);
+              if (z > 0) neighbor = data[index - strideZ];
+              else neighbor = this.world.getBlock(this.x * size + x, y, this.z * size + z - 1);
+
               if (!(isWater && neighbor === BlockType.WATER) && this.shouldDrawFace(x, y, z - 1, neighbor)) {
                   this.addFace(x, y, z, 5, isWater ? waterPositions : positions, isWater ? waterNormals : normals, isWater ? waterColors : colors, isWater ? waterUvs : uvs, color, blockId, tintColor);
               }
@@ -640,9 +681,9 @@ export class Chunk {
               // Couleur orange/jaune (0xFFAA00), intensité 2.0, distance 30 (pour couvrir ~8 blocs)
               const light = new THREE.PointLight(0xFFAA00, 10, 30);
               light.position.set(
-                  this.x * this.size + x + 0.5,
+                  this.x * size + x + 0.5,
                   y + 0.6,
-                  this.z * this.size + z + 0.5
+                  this.z * size + z + 0.5
               );
               this.game.scene.add(light);
               this.lights.push(light);
@@ -671,7 +712,7 @@ export class Chunk {
         });
         
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.position.set(this.x * this.size, 0, this.z * this.size);
+        mesh.position.set(this.x * size, 0, this.z * size);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         
@@ -698,7 +739,7 @@ export class Chunk {
         });
         
         this.waterMesh = new THREE.Mesh(geometry, material);
-        this.waterMesh.position.set(this.x * this.size, 0, this.z * this.size);
+        this.waterMesh.position.set(this.x * size, 0, this.z * size);
         this.waterMesh.receiveShadow = true;
         
         this.game.scene.add(this.waterMesh);
