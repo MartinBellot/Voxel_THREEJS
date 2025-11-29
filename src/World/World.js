@@ -459,5 +459,22 @@ export class World {
     if (localZ < 0) localZ += this.chunkSize;
     
     chunk.setBlock(localX, Math.floor(y), localZ, type);
+
+    // Update neighbor chunks if block is on the edge
+    if (localX === 0) {
+        const neighbor = this.chunks.get(`${chunkX - 1},${chunkZ}`);
+        if (neighbor) neighbor.updateMesh();
+    } else if (localX === this.chunkSize - 1) {
+        const neighbor = this.chunks.get(`${chunkX + 1},${chunkZ}`);
+        if (neighbor) neighbor.updateMesh();
+    }
+
+    if (localZ === 0) {
+        const neighbor = this.chunks.get(`${chunkX},${chunkZ - 1}`);
+        if (neighbor) neighbor.updateMesh();
+    } else if (localZ === this.chunkSize - 1) {
+        const neighbor = this.chunks.get(`${chunkX},${chunkZ + 1}`);
+        if (neighbor) neighbor.updateMesh();
+    }
   }
 }

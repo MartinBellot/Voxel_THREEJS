@@ -94,3 +94,44 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* --- Minimap --- */
+#minimap-container {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: var(--color-bg-translucent);
+  backdrop-filter: blur(var(--blur-amount));
+  -webkit-backdrop-filter: blur(var(--blur-amount));
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+#minimap-container canvas {
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  background-color: rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-sm);
+}
+
+#minimap-time {
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  width: 100%;
+  justify-content: center;
+}

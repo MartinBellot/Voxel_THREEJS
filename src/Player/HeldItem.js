@@ -16,12 +16,16 @@ export class HeldItem {
         this.camera.position.set(0, 0, 0);
 
         // Lights for the held item scene
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
-        this.scene.add(ambientLight);
+        this.ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+        this.scene.add(this.ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
-        dirLight.position.set(5, 10, 7);
-        this.scene.add(dirLight);
+        this.sunLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        this.sunLight.position.set(5, 10, 7);
+        this.scene.add(this.sunLight);
+
+        this.moonLight = new THREE.DirectionalLight(0x6666ff, 0.0);
+        this.moonLight.position.set(-5, 10, -7);
+        this.scene.add(this.moonLight);
 
         this.mesh = null;
         this.currentItemType = null;
@@ -37,6 +41,22 @@ export class HeldItem {
 
     update(delta) {
         if (!this.mesh) return;
+
+        // Sync Lighting with Game World
+        if (this.game.ambientLight) {
+            this.ambientLight.color.copy(this.game.ambientLight.color);
+            this.ambientLight.intensity = this.game.ambientLight.intensity;
+        }
+
+        if (this.game.sunLight) {
+            this.sunLight.color.copy(this.game.sunLight.color);
+            this.sunLight.intensity = this.game.sunLight.intensity;
+        }
+
+        if (this.game.moonLight) {
+            this.moonLight.color.copy(this.game.moonLight.color);
+            this.moonLight.intensity = this.game.moonLight.intensity;
+        }
 
         // Handle window resize
         if (this.camera.aspect !== window.innerWidth / window.innerHeight) {

@@ -14,6 +14,12 @@ export class Chunk {
     this.lights = []; // Stocke les lumières dynamiques
     this.lod = 0; // 0 = High, 1 = Low
     
+    // Minimap optimization
+    this.topMap = new Uint8Array(this.size * this.size); // Stores Block ID of top block
+    this.heightMap = new Int16Array(this.size * this.size); // Stores Y of top block
+    this.topMap.fill(0);
+    this.heightMap.fill(-1);
+
     this.generateData();
     this.generateMesh();
   }
@@ -44,6 +50,17 @@ export class Chunk {
     }
     
     return this.data[x + this.size * (y + this.height * z)];
+  }
+
+  getTopBlock(x, z) {
+      if (x < 0 || x >= this.size || z < 0 || z >= this.size) {
+          return null;
+      }
+      const index = x + z * this.size;
+      return {
+          id: this.topMap[index],
+          y: this.heightMap[index]
+      };
   }
 
   setLOD(level) {
@@ -240,6 +257,21 @@ export class Chunk {
     
     // Passe de décoration
     this.decorateChunk();
+
+    // Generate Minimap Data
+    for (let x = 0; x < this.size; x++) {
+        for (let z = 0; z < this.size; z++) {
+            for (let y = this.height - 1; y >= 0; y--) {
+                const index = x + this.size * (y + this.height * z);
+                const id = this.data[index];
+                if (id !== BlockType.AIR && id !== BlockType.CLOUD) {
+                    this.topMap[x + z * this.size] = id;
+                    this.heightMap[x + z * this.size] = y;
+                    break;
+                }
+            }
+        }
+    }
   }
 
   // ...existing code...
@@ -455,7 +487,40 @@ export class Chunk {
     if (x < 0 || x >= this.size || y < 0 || y >= this.height || z < 0 || z >= this.size) {
       return;
     }
-    this.data[this.getBlockIndex(x, y, z)] = type;
+    const index = this.getBlockIndex(x, y, z);
+    if (this.data[index] === type) return; // Optimization: Don't update if same block
+    
+    this.data[index] = type;
+
+    // Update Minimap Data
+    const mapIndex = x + z * this.size;
+    const currentTopY = this.heightMap[mapIndex];
+
+    if (type !== BlockType.AIR && type !== BlockType.CLOUD) {
+        // Placing a block
+        if (y >= currentTopY) {
+            this.topMap[mapIndex] = type;
+            this.heightMap[mapIndex] = y;
+        }
+    } else {
+        // Removing a block (or placing air/cloud)
+        if (y === currentTopY) {
+            // We removed the top block, need to find new top
+            let newTopY = -1;
+            let newTopId = 0;
+            for (let dy = y - 1; dy >= 0; dy--) {
+                const id = this.data[this.getBlockIndex(x, dy, z)];
+                if (id !== BlockType.AIR && id !== BlockType.CLOUD) {
+                    newTopY = dy;
+                    newTopId = id;
+                    break;
+                }
+            }
+            this.topMap[mapIndex] = newTopId;
+            this.heightMap[mapIndex] = newTopY;
+        }
+    }
+    
     this.updateMesh();
   }
 

@@ -9,6 +9,7 @@ import { PauseMenu } from './PauseMenu.js';
 import { DroppedItem } from './World/DroppedItem.js';
 import { BlockType } from './World/Block.js';
 import { Pig } from './Entities/Pig.js';
+import { Minimap } from './Minimap/Minimap.js';
 
 export class Game {
   constructor() {
@@ -48,6 +49,7 @@ export class Game {
     this.clouds = new Clouds(this);
     this.console = new Console(this);
     this.pauseMenu = new PauseMenu(this);
+    this.minimap = new Minimap(this);
     
     this.droppedItems = [];
     this.entities = [];
@@ -448,6 +450,10 @@ export class Game {
     this.updateDayNightCycle(delta);
     
     this.updateDebugInfo();
+
+    if (this.minimap) {
+        this.minimap.update();
+    }
 
     this.renderer.clear();
     this.renderer.render(this.scene, this.camera);
