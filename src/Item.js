@@ -8,7 +8,8 @@ export const ItemType = {
   SWORD: 300,
   BOW: 301,
   ARROW: 302,
-  SPAWN_PIG: 400
+  SPAWN_PIG: 400,
+  SPAWN_CHICKEN: 401
 };
 
 export const ItemDefinitions = {
@@ -42,4 +43,5 @@ export const ItemDefinitions = {
   [ItemType.BOW]: { name: 'Bow', isPlaceable: false, texture: 'bow.png', class: 'Bow' },
   [ItemType.ARROW]: { name: 'Arrow', isPlaceable: false, texture: 'arrow.png' },
   [ItemType.SPAWN_PIG]: { name: 'Spawn Pig', isPlaceable: false, texture: '../entities/pig.png' },
+  [ItemType.SPAWN_CHICKEN]: { name: 'Spawn Chicken', isPlaceable: false, texture: '../entities/chicken.png' },
 };

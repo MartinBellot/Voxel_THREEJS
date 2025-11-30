@@ -2,7 +2,7 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from .models import Operator
-from game.models import World
+from game.models import World, Player
 
 class ConsoleConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -42,10 +42,57 @@ class ConsoleConsumer(AsyncWebsocketConsumer):
                 await self.handle_tp(args, username)
             elif cmd == "fly":
                 await self.handle_fly(args, username)
+            elif cmd == "gamemode":
+                await self.handle_gamemode(args, username)
             elif cmd == "help":
                 await self.handle_help()
             else:
                 await self.send_log(f"Unknown command: {cmd}", "error")
+
+    async def handle_gamemode(self, args, username):
+        if not await self.is_operator(username):
+             await self.send_log("Vous n'êtes pas opérateur", "error")
+             return
+
+        if len(args) < 1:
+            await self.send_log("Usage: /gamemode <survival/creative> [player]", "error")
+            return
+
+        mode = args[0].lower()
+        if mode not in ["survival", "creative"]:
+            await self.send_log("Invalid gamemode. Use 'survival' or 'creative'", "error")
+            return
+
+        target_username = username
+        if len(args) > 1:
+            target_username = args[1]
+
+        # Update DB and notify
+        success = await self.update_player_gamemode(target_username, mode)
+        if success:
+            await self.broadcast_log(f"Set gamemode to {mode} for {target_username}")
+            
+            # Notify GameConsumer group
+            await self.channel_layer.group_send(
+                "game_world",
+                {
+                    "type": "gamemode_update",
+                    "username": target_username,
+                    "gamemode": mode
+                }
+            )
+        else:
+            await self.send_log(f"Player {target_username} not found", "error")
+
+    @database_sync_to_async
+    def update_player_gamemode(self, username, mode):
+        try:
+            player = Player.objects.get(username=username)
+            player.gamemode = mode
+            player.save()
+            return True
+        except Player.DoesNotExist:
+            return False
 
     async def handle_time(self, args, username):
         if not await self.is_operator(username):

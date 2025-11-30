@@ -1,9 +1,16 @@
 export class Inventory {
-  constructor(size = 36, hotbarSize = 9) {
+  constructor(game, size = 36, hotbarSize = 9) {
+    this.game = game;
     this.size = size;
     this.hotbarSize = hotbarSize;
     this.slots = new Array(size).fill(null);
     this.selectedSlot = 0;
+  }
+
+  notifyUpdate() {
+    if (this.game && this.game.networkManager) {
+        this.game.networkManager.sendInventoryUpdate(this.slots);
+    }
   }
 
   addItem(itemType, count = 1) {
@@ -14,7 +21,10 @@ export class Inventory {
         const toAdd = Math.min(space, count);
         this.slots[i].count += toAdd;
         count -= toAdd;
-        if (count === 0) return true;
+        if (count === 0) {
+            this.notifyUpdate();
+            return true;
+        }
       }
     }
 
@@ -22,6 +32,7 @@ export class Inventory {
     for (let i = 0; i < this.size; i++) {
       if (!this.slots[i]) {
         this.slots[i] = { type: itemType, count: count };
+        this.notifyUpdate();
         return true;
       }
     }
@@ -31,7 +42,12 @@ export class Inventory {
 
   setItem(index, itemType, count) {
     if (index >= 0 && index < this.size) {
-      this.slots[index] = { type: itemType, count: count };
+      if (itemType === null || count <= 0) {
+        this.slots[index] = null;
+      } else {
+        this.slots[index] = { type: itemType, count: count };
+      }
+      this.notifyUpdate();
     }
   }
 
@@ -45,6 +61,7 @@ export class Inventory {
       if (this.slots[index].count <= 0) {
         this.slots[index] = null;
       }
+      this.notifyUpdate();
     }
   }
 
@@ -52,6 +69,7 @@ export class Inventory {
     const temp = this.slots[index1];
     this.slots[index1] = this.slots[index2];
     this.slots[index2] = temp;
+    this.notifyUpdate();
   }
 
   getSelectedBlockType(ItemDefinitions) {

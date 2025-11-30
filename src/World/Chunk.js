@@ -109,7 +109,7 @@ export class Chunk {
   }
 
   isBlockOpaque(id) {
-    if (id === BlockType.AIR || id === BlockType.WATER || id === BlockType.TORCH || id === BlockType.CACTUS || id === BlockType.LEAVES || id === BlockType.PINE_LEAVES || id === BlockType.MUSHROOM_STEM || id === BlockType.MUSHROOM_CAP || id === BlockType.SAPLING || id === BlockType.FLOWER || id === BlockType.CLOUD) return false;
+    if (id === BlockType.AIR || id === BlockType.WATER || id === BlockType.TORCH || id === BlockType.CACTUS || id === BlockType.LEAVES || id === BlockType.PINE_LEAVES || id === BlockType.MUSHROOM_STEM || id === BlockType.MUSHROOM_CAP || id === BlockType.SAPLING || id === BlockType.FLOWER || id === BlockType.CLOUD || id === BlockType.TALL_GRASS) return false;
     return true;
   }
 
@@ -503,6 +503,17 @@ export class Chunk {
                 const pseudoRandom = Math.abs(Math.sin(worldX * 12.9898 + worldZ * 78.233) * 43758.5453) % 1;
                 const hasTree = treeNoise > 0.4 && pseudoRandom > 0.85;
 
+                // Add Tall Grass
+                // High density in open areas, low density near trees
+                if (!hasTree && this.getBlock(x, surfaceHeight, z) === BlockType.AIR) {
+                     const grassNoise = this.world.noise2D(worldX * 0.5, worldZ * 0.5);
+                     // More grass in open areas
+                     if (grassNoise > 0.2 && pseudoRandom > 0.3) {
+                         const index = this.getBlockIndex(x, surfaceHeight, z);
+                         this.data[index] = BlockType.TALL_GRASS;
+                     }
+                }
+
                 if (hasTree) {
                     // Restore old tree generation (Classic Spruce)
                     // Trunk
@@ -779,6 +790,8 @@ export class Chunk {
           const isWater = blockId === BlockType.WATER;
           const isTorch = blockId === BlockType.TORCH;
           const isCactus = blockId === BlockType.CACTUS;
+          const isCross = def.model === BlockModels.CROSS;
+          const isGrass = def.model === BlockModels.GRASS;
           
           let tintColor = null;
           if (def.textures && textureManager && textureManager.atlasTexture) {
@@ -792,11 +805,16 @@ export class Chunk {
                  const worldZ = z + this.z * size;
                  const biomeData = this.world.getBiomeData(worldX, worldZ);
                  tintColor = textureManager.getBiomeColor('foliage', biomeData.temperature, biomeData.humidity);
+             } else if (blockId === BlockType.TALL_GRASS) {
+                 const worldX = x + this.x * size;
+                 const worldZ = z + this.z * size;
+                 const biomeData = this.world.getBiomeData(worldX, worldZ);
+                 tintColor = textureManager.getBiomeColor('grass', biomeData.temperature, biomeData.humidity);
              }
           }
           
           // Geometry generation for Cube
-          if (!isTorch && !isCactus) {
+          if (!isTorch && !isCactus && !isCross && !isGrass) {
               // Check 6 faces
               // Right (x+1)
               let neighbor;
@@ -843,6 +861,10 @@ export class Chunk {
               }
           } else if (isCactus) {
               this.addCactus(x, y, z, positions, normals, colors, uvs, color, blockId);
+          } else if (isCross) {
+              this.addCross(x, y, z, positions, normals, colors, uvs, color, blockId, tintColor);
+          } else if (isGrass) {
+              this.addGrass(x, y, z, positions, normals, colors, uvs, color, blockId, tintColor);
           } else {
               // Torch Geometry (Simplified as a small box)
               // Always draw torches for now, or check if obscured (unlikely)
@@ -1154,5 +1176,222 @@ export class Chunk {
       
       // Back (z-1)
       this.addFace(x, y, z, 5, positions, normals, colors, uvs, color, blockId, null, inset);
+  }
+
+  addGrass(x, y, z, positions, normals, colors, uvs, color, blockId, tintColor) {
+      // LOD Optimization: Skip grass on distant chunks
+      if (this.lod > 0) return;
+
+      // Deterministic random based on position
+      let seed = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453);
+      const random = () => {
+          seed = (seed * 9301 + 49297) % 233280;
+          return seed / 233280;
+      };
+
+      // Optimization: Reduce blade count (5-8) but increase width slightly
+      const numBlades = 5 + Math.floor(random() * 4); 
+      
+      // Texture UVs
+      const textureManager = this.game.textureManager;
+      let uMin = 0, uMax = 1, vMin = 0, vMax = 1;
+      if (textureManager && textureManager.atlasTexture) {
+          const def = BlockDefinitions[blockId];
+          let texName = def.textures.all;
+          const uvsRect = textureManager.getUVs(texName);
+          if (uvsRect) {
+              uMin = uvsRect.uMin;
+              uMax = uvsRect.uMax;
+              vMin = uvsRect.vMin;
+              vMax = uvsRect.vMax;
+          }
+      }
+
+      for (let i = 0; i < numBlades; i++) {
+          // Random position in block
+          const bx = x + 0.2 + random() * 0.6;
+          const bz = z + 0.2 + random() * 0.6;
+          
+          // Random height
+          const h = 0.6 + random() * 0.4;
+          
+          // Random width (slightly wider)
+          const w = 0.08 + random() * 0.06;
+          
+          // Optimization: Avoid trig functions for rotation
+          // Generate random direction vector
+          let dirX = (random() - 0.5) * 2;
+          let dirZ = (random() - 0.5) * 2;
+          // Fast approximate normalization (or just use as is if we don't care about exact width consistency)
+          // But let's normalize to keep width consistent
+          const len = Math.sqrt(dirX*dirX + dirZ*dirZ) || 1;
+          const cos = dirX / len;
+          const sin = dirZ / len;
+          
+          // Tilt (offset top)
+          const tiltX = (random() - 0.5) * 0.5;
+          const tiltZ = (random() - 0.5) * 0.5;
+          
+          // Vertices
+          // V0: Base Left
+          // V1: Base Right
+          // V2: Top Tip
+          
+          const x0 = bx - w * cos;
+          const z0 = bz - w * sin;
+          
+          const x1 = bx + w * cos;
+          const z1 = bz + w * sin;
+          
+          const x2 = bx + tiltX;
+          const z2 = bz + tiltZ;
+          const y2 = y + h;
+          
+          // Push Triangle (Double sided? Or just add 2 triangles)
+          // Front
+          positions.push(x0, y, z0);
+          positions.push(x1, y, z1);
+          positions.push(x2, y2, z2);
+          
+          uvs.push(uMin, vMin);
+          uvs.push(uMax, vMin);
+          uvs.push((uMin + uMax) / 2, vMax);
+          
+          // Back
+          positions.push(x0, y, z0);
+          positions.push(x2, y2, z2);
+          positions.push(x1, y, z1);
+          
+          uvs.push(uMin, vMin);
+          uvs.push((uMin + uMax) / 2, vMax);
+          uvs.push(uMax, vMin);
+          
+          // Normals (approximate up or face normal)
+          const nx = 0; const ny = 1; const nz = 0;
+          
+          // Color variation
+          let r = color.r;
+          let g = color.g;
+          let b = color.b;
+          
+          if (tintColor) {
+              // Add variation
+              const varG = (random() - 0.5) * 0.2;
+              r = tintColor.r;
+              g = Math.max(0, Math.min(1, tintColor.g + varG));
+              b = tintColor.b;
+          }
+          
+          for (let k = 0; k < 6; k++) {
+              normals.push(nx, ny, nz);
+              colors.push(r, g, b);
+          }
+      }
+  }
+
+  addCross(x, y, z, positions, normals, colors, uvs, color, blockId, tintColor) {
+      // Random height variation based on position
+      const pseudoRandom = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1;
+      const heightScale = 0.8 + pseudoRandom * 0.4; // 0.8 to 1.2
+      const h = 1.0 * heightScale;
+      
+      // Offset to center
+      const cx = x + 0.5;
+      const cz = z + 0.5;
+      
+      // Width of the grass blade
+      const w = 0.5; // Full block width is 1, so 0.5 radius
+      
+      // Plane 1: (x, z) to (x+1, z+1) -> Diagonal 1
+      // Plane 2: (x, z+1) to (x+1, z) -> Diagonal 2
+      
+      // We need 4 faces (2 per plane, double sided)
+      
+      // Vertices
+      // P1: (x, z)
+      // P2: (x+1, z+1)
+      // P3: (x, z+1)
+      // P4: (x+1, z)
+      
+      // Bottom Y = y
+      // Top Y = y + h
+      
+      const p = [
+          // Plane 1
+          [cx - w, y, cz - w],     // 0: BL
+          [cx + w, y, cz + w],     // 1: TR
+          [cx - w, y + h, cz - w], // 2: TBL
+          [cx + w, y + h, cz + w], // 3: TTR
+          
+          // Plane 2
+          [cx - w, y, cz + w],     // 4: TL
+          [cx + w, y, cz - w],     // 5: BR
+          [cx - w, y + h, cz + w], // 6: TTL
+          [cx + w, y + h, cz - w]  // 7: TBR
+      ];
+      
+      // UVs
+      // We need to map the texture to the cross planes.
+      // Assuming the texture is a full block texture.
+      const textureManager = this.game.textureManager;
+      let uMin = 0, uMax = 1, vMin = 0, vMax = 1;
+      
+      if (textureManager && textureManager.atlasTexture) {
+          const def = BlockDefinitions[blockId];
+          let texName = def.textures.all;
+          const uvsRect = textureManager.getUVs(texName);
+          if (uvsRect) {
+              uMin = uvsRect.uMin;
+              uMax = uvsRect.uMax;
+              vMin = uvsRect.vMin;
+              vMax = uvsRect.vMax;
+          }
+      }
+      
+      // Helper to add quad
+      const addQuad = (v0, v1, v2, v3, normal) => {
+          // Tri 1
+          positions.push(p[v0][0], p[v0][1], p[v0][2]);
+          positions.push(p[v2][0], p[v2][1], p[v2][2]);
+          positions.push(p[v1][0], p[v1][1], p[v1][2]);
+          
+          uvs.push(uMin, vMin);
+          uvs.push(uMin, vMax);
+          uvs.push(uMax, vMin);
+          
+          // Tri 2
+          positions.push(p[v1][0], p[v1][1], p[v1][2]);
+          positions.push(p[v2][0], p[v2][1], p[v2][2]);
+          positions.push(p[v3][0], p[v3][1], p[v3][2]);
+          
+          uvs.push(uMax, vMin);
+          uvs.push(uMin, vMax);
+          uvs.push(uMax, vMax);
+          
+          let r = color.r;
+          let g = color.g;
+          let b = color.b;
+
+          if (tintColor) {
+              r = tintColor.r;
+              g = tintColor.g;
+              b = tintColor.b;
+          }
+
+          for (let k = 0; k < 6; k++) {
+              normals.push(normal[0], normal[1], normal[2]);
+              colors.push(r, g, b);
+          }
+      };
+      
+      // Plane 1 Front
+      addQuad(0, 1, 2, 3, [0.707, 0, 0.707]);
+      // Plane 1 Back
+      addQuad(1, 0, 3, 2, [-0.707, 0, -0.707]);
+      
+      // Plane 2 Front
+      addQuad(4, 5, 6, 7, [0.707, 0, -0.707]);
+      // Plane 2 Back
+      addQuad(5, 4, 7, 6, [-0.707, 0, 0.707]);
   }
 }

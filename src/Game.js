@@ -9,6 +9,7 @@ import { PauseMenu } from './PauseMenu.js';
 import { DroppedItem } from './World/DroppedItem.js';
 import { BlockType } from './World/Block.js';
 import { Pig } from './Entities/Pig.js';
+import { Chicken } from './Entities/Chicken.js';
 import { Minimap } from './Minimap/Minimap.js';
 
 export class Game {
@@ -421,6 +422,9 @@ export class Game {
       if (type === 'pig') {
           const pig = new Pig(this, position);
           this.entities.push(pig);
+      } else if (type === 'chicken') {
+          const chicken = new Chicken(this, position);
+          this.entities.push(chicken);
       }
   }
 

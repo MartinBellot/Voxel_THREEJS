@@ -35,6 +35,13 @@ export class InventoryUI {
     this.updateHotbar();
   }
 
+  updateGamemode(mode) {
+      const creativeSection = this.container.querySelector('.creative-section');
+      if (creativeSection) {
+          creativeSection.style.display = mode === 'creative' ? 'block' : 'none';
+      }
+  }
+
   setupCharacterPreview() {
     const inventoryWindow = this.container.querySelector('.inventory-window');
     
@@ -292,6 +299,7 @@ export class InventoryUI {
           } else {
             this.updateCursorVisual();
           }
+          this.inventory.notifyUpdate();
         } else {
           // Swap
           const temp = item;
@@ -320,7 +328,11 @@ export class InventoryUI {
     if (this.cursorItem) {
       cursor.style.display = 'block';
       const def = ItemDefinitions[this.cursorItem.type];
-      const blockDef = BlockDefinitions[def.blockType];
+      if (!def) {
+        cursor.style.display = 'none';
+        return;
+      }
+      const blockDef = def.blockType ? BlockDefinitions[def.blockType] : null;
       
       if (def.texture) {
           cursor.style.backgroundImage = `url('assets/textures/item/${def.texture}')`;
@@ -371,9 +383,14 @@ export class InventoryUI {
 
   renderSlotContent(slotElement, item) {
     slotElement.innerHTML = '';
-    if (item) {
+    // Check if item is valid and has a type (not null/undefined)
+    if (item && item.type !== null && item.type !== undefined) {
       const def = ItemDefinitions[item.type];
-      const blockDef = BlockDefinitions[def.blockType];
+      if (!def) {
+        console.warn('Unknown item type:', item.type);
+        return;
+      }
+      const blockDef = def.blockType ? BlockDefinitions[def.blockType] : null;
       
       const icon = document.createElement('div');
       icon.className = 'item-icon';

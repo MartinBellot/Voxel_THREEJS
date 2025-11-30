@@ -52,7 +52,7 @@ export class Player {
     this.raycaster = new THREE.Raycaster();
     this.raycaster.far = 5; // Portée d'interaction
     
-    this.inventory = new Inventory();
+    this.inventory = new Inventory(this.game);
     this.inventoryUI = new InventoryUI(this.game, this.inventory);
     
     this.heldItem = new HeldItem(this.game, this);
@@ -74,6 +74,63 @@ export class Player {
     this.camera.position.set(0, 80, 0); // Plus haut pour éviter de spawner dans le sol
     
     this.lastNetworkUpdate = 0;
+    
+    this.gamemode = 'survival';
+    this.health = 20;
+    this.maxHealth = 20;
+  }
+
+  setGamemode(mode) {
+    this.gamemode = mode;
+    console.log(`Gamemode set to ${mode}`);
+    
+    if (mode === 'survival') {
+        this.flyMode = false;
+        this.canJump = true; // Reset jump ability
+        document.getElementById('health-bar-container').style.display = 'flex';
+    } else {
+        document.getElementById('health-bar-container').style.display = 'none';
+    }
+    
+    // Update UI
+    if (this.inventoryUI) {
+        this.inventoryUI.updateGamemode(mode);
+    }
+    this.updateHealthUI();
+  }
+
+  setHealth(value) {
+      this.health = value;
+      this.updateHealthUI();
+  }
+
+  updateHealthUI() {
+      const container = document.getElementById('health-bar');
+      if (!container) return;
+      
+      container.innerHTML = '';
+      
+      // 10 hearts = 20 health
+      const hearts = 10;
+      
+      for (let i = 0; i < hearts; i++) {
+          const heart = document.createElement('div');
+          heart.className = 'heart';
+          
+          const heartValue = (i + 1) * 2;
+          
+          if (this.health >= heartValue) {
+              // Full heart
+          } else if (this.health >= heartValue - 1) {
+              // Half heart
+              heart.classList.add('half');
+          } else {
+              // Empty heart
+              heart.classList.add('empty');
+          }
+          
+          container.appendChild(heart);
+      }
   }
 
   setupHighlight() {
@@ -324,7 +381,7 @@ export class Player {
           break;
         case 'Space':
           const now = Date.now();
-          if (now - this.lastSpacePressTime < 300) {
+          if (this.gamemode === 'creative' && now - this.lastSpacePressTime < 300) {
             this.flyMode = !this.flyMode;
             this.lastSpacePressTime = 0;
             if (this.flyMode) {
@@ -457,6 +514,14 @@ export class Player {
             // Center of the block
             const spawnPos = new THREE.Vector3(x + 0.5, y, z + 0.5);
             this.game.spawnEntity('pig', spawnPos);
+            return;
+        }
+
+        if (selectedItem && selectedItem.type === ItemType.SPAWN_CHICKEN) {
+            // Spawn Chicken
+            // Center of the block
+            const spawnPos = new THREE.Vector3(x + 0.5, y, z + 0.5);
+            this.game.spawnEntity('chicken', spawnPos);
             return;
         }
 

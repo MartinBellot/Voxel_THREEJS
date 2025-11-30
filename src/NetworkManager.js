@@ -91,6 +91,28 @@ export class NetworkManager {
         });
     }
 
+    sendInventoryUpdate(inventorySlots) {
+        this.send({
+            type: 'inventory_update',
+            inventory: inventorySlots
+        });
+    }
+
+    showMotd(message) {
+        const container = document.getElementById('motd-container');
+        const text = document.getElementById('motd-text');
+        if (container && text) {
+            text.innerText = message;
+            container.style.display = 'block';
+            
+            // Reset animation
+            container.style.animation = 'none';
+            container.offsetHeight; /* trigger reflow */
+            container.style.animation = 'fadeOut 5s forwards';
+            container.style.animationDelay = '3s';
+        }
+    }
+
     handleMessage(data) {
         switch (data.type) {
             case 'player_init':
@@ -98,6 +120,23 @@ export class NetworkManager {
                 if (this.game.player) {
                     console.log('Initializing player position/rotation:', data.position, data.rotation);
                     this.game.player.camera.position.set(data.position.x, data.position.y, data.position.z);
+                    
+                    // Load inventory if present
+                    if (data.inventory && Array.isArray(data.inventory)) {
+                        console.log('Loading inventory from server:', data.inventory);
+                        this.game.player.inventory.slots = data.inventory;
+                        if (this.game.player.inventoryUI) {
+                            this.game.player.inventoryUI.updateHotbar();
+                        }
+                    }
+
+                    // Set gamemode and health
+                    if (data.gamemode) {
+                        this.game.player.setGamemode(data.gamemode);
+                    }
+                    if (data.health !== undefined) {
+                        this.game.player.setHealth(data.health);
+                    }
                     
                     // Reset rotation completely first
                     this.game.player.camera.rotation.set(0, 0, 0);
@@ -119,9 +158,22 @@ export class NetworkManager {
                 }
                 this.game.isPlaying = true;
                 break;
+            case 'gamemode_update':
+                if (this.game.player) {
+                    this.game.player.setGamemode(data.gamemode);
+                }
+                break;
+            case 'health_update':
+                if (this.game.player) {
+                    this.game.player.setHealth(data.health);
+                }
+                break;
             case 'world_data':
                 this.game.world.setModifications(data.modifications);
                 this.game.world.setSeed(data.seed);
+                if (data.motd) {
+                    this.showMotd(data.motd);
+                }
                 break;
             case 'block_update':
                 this.game.world.addModification(data.position.x, data.position.y, data.position.z, data.blockType);

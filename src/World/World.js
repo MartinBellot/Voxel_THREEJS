@@ -9,7 +9,7 @@ export class World {
     this.game = game;
     this.chunks = new Map();
     this.chunkSize = 16;
-    this.chunkHeight = 640;
+    this.chunkHeight = 320; // Reduced from 640 to save memory
     this.renderDistance = 6; // High detail distance
     this.farRenderDistance = 16; // Low detail distance (Immense)
     this.seaLevel = 40;

@@ -144,7 +144,7 @@ export class Physics {
       for (let by = startY; by <= endY; by++) {
         for (let bz = startZ; bz <= endZ; bz++) {
           const block = this.world.getBlock(bx, by, bz);
-          if (block !== BlockType.AIR && block !== BlockType.WATER) {
+          if (block !== BlockType.AIR && block !== BlockType.WATER && block !== BlockType.TALL_GRASS) {
             return true;
           }
         }

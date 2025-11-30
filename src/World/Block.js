@@ -19,6 +19,7 @@ export const BlockType = {
   DARK_OAK_LOG: 17,
   DARK_OAK_LEAVES: 18,
   CLOUD: 19,
+  TALL_GRASS: 25,
   TORCH: 100,
   CARROT: 200,
   // New Mushroom Biome Blocks
@@ -37,7 +38,9 @@ export const BlockType = {
 export const BlockModels = {
   CUBE: 'cube',
   TORCH: 'torch',
-  CACTUS: 'cactus'
+  CACTUS: 'cactus',
+  CROSS: 'cross',
+  GRASS: 'grass'
 };
 
 export const BlockDefinitions = {
@@ -97,6 +100,14 @@ export const BlockDefinitions = {
       side: 'grass_block_side.png',
       bottom: 'dirt.png'
     }
+  },
+  [BlockType.TALL_GRASS]: {
+    color: 0x00AA00,
+    visible: true,
+    model: BlockModels.GRASS,
+    transparent: true,
+    opacity: 1.0,
+    textures: { all: 'grass_block_tint.png' }
   },
   [BlockType.BEDROCK]: { color: 0x333333, visible: true, model: BlockModels.CUBE },
   [BlockType.SPRUCE_LOG]: { 

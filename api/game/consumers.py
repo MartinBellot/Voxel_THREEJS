@@ -57,7 +57,10 @@ class GameConsumer(AsyncWebsocketConsumer):
                 "id": self.channel_name,
                 "username": username,
                 "position": {"x": player_obj.x, "y": player_obj.y, "z": player_obj.z},
-                "rotation": {"x": player_obj.rotation_x, "y": player_obj.rotation_y, "z": 0}
+                "rotation": {"x": player_obj.rotation_x, "y": player_obj.rotation_y, "z": 0},
+                "inventory": player_obj.inventory,
+                "gamemode": player_obj.gamemode,
+                "health": player_obj.health
             }
 
             # Send player init data (ID and saved position)
@@ -65,7 +68,10 @@ class GameConsumer(AsyncWebsocketConsumer):
                 "type": "player_init",
                 "id": self.channel_name,
                 "position": self.players[self.channel_name]["position"],
-                "rotation": self.players[self.channel_name]["rotation"]
+                "rotation": self.players[self.channel_name]["rotation"],
+                "inventory": self.players[self.channel_name]["inventory"],
+                "gamemode": self.players[self.channel_name]["gamemode"],
+                "health": self.players[self.channel_name]["health"]
             }))
             
             # Get world data
@@ -76,6 +82,7 @@ class GameConsumer(AsyncWebsocketConsumer):
                 "type": "world_data",
                 "seed": world_data['seed'],
                 "time": world_data['time'],
+                "motd": world_data['motd'],
                 "modifications": world_data['modifications']
             }))
             
@@ -109,6 +116,12 @@ class GameConsumer(AsyncWebsocketConsumer):
                         "rotation": data.get("rotation")
                     }
                 )
+
+        elif message_type == "inventory_update":
+            if self.channel_name in self.players:
+                self.players[self.channel_name]["inventory"] = data.get("inventory")
+                # We don't necessarily need to broadcast this to everyone unless we want to show held items or equipment
+                # For now, just save it in the session state so it gets saved to DB on disconnect
         
         elif message_type == "block_update":
             position = data.get("position")
@@ -142,6 +155,10 @@ class GameConsumer(AsyncWebsocketConsumer):
             player.z = player_data['position']['z']
             player.rotation_x = player_data['rotation']['x']
             player.rotation_y = player_data['rotation']['y']
+            if 'inventory' in player_data:
+                player.inventory = player_data['inventory']
+            player.gamemode = player_data.get('gamemode', 'survival')
+            player.health = player_data.get('health', 20)
             player.save()
         except Player.DoesNotExist:
             pass
@@ -158,6 +175,7 @@ class GameConsumer(AsyncWebsocketConsumer):
         return {
             "seed": world.seed,
             "time": world.time,
+            "motd": world.motd,
             "modifications": all_modifications
         }
 
@@ -209,3 +227,23 @@ class GameConsumer(AsyncWebsocketConsumer):
             "position": event["position"],
             "blockType": event["blockType"]
         }))
+
+    async def gamemode_update(self, event):
+        # Check if this update is for this player
+        if self.players.get(self.channel_name, {}).get("username") == event["username"]:
+            # Update local state
+            self.players[self.channel_name]["gamemode"] = event["gamemode"]
+            
+            await self.send(text_data=json.dumps({
+                "type": "gamemode_update",
+                "gamemode": event["gamemode"]
+            }))
+
+    async def health_update(self, event):
+        if self.players.get(self.channel_name, {}).get("username") == event["username"]:
+            self.players[self.channel_name]["health"] = event["health"]
+            
+            await self.send(text_data=json.dumps({
+                "type": "health_update",
+                "health": event["health"]
+            }))

@@ -53,12 +53,32 @@ export class TextureManager {
         await Promise.all(colormaps.map(file => {
             return new Promise((resolve) => {
                 loader.load(this.colormapPath + file, (image) => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = image.width;
-                    canvas.height = image.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(image, 0, 0);
-                    this.colormaps[file.split('.')[0]] = ctx.getImageData(0, 0, image.width, image.height);
+                    console.log(`Loading colormap ${file}: ${image.width}x${image.height}`);
+                    if (image.width === 0 || image.height === 0) {
+                        console.warn(`Colormap ${file} has 0 dimensions.`);
+                        resolve();
+                        return;
+                    }
+                    try {
+                        let width = image.width;
+                        let height = image.height;
+                        
+                        // Downscale if too large to prevent OOM
+                        if (width > 512 || height > 512) {
+                            console.warn(`Colormap ${file} is too large (${width}x${height}). Downscaling to 256x256.`);
+                            width = 256;
+                            height = 256;
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                        ctx.drawImage(image, 0, 0, width, height);
+                        this.colormaps[file.split('.')[0]] = ctx.getImageData(0, 0, width, height);
+                    } catch (e) {
+                        console.error(`Failed to process colormap ${file}:`, e);
+                    }
                     resolve();
                 }, undefined, (err) => {
                     console.error(`Failed to load colormap: ${file}`, err);

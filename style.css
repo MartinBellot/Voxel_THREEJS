@@ -66,11 +66,85 @@ canvas {
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 24px;
-  font-weight: 200;
+  width: 20px;
+  height: 20px;
+  margin-left: -10px;
+  margin-top: -10px;
+  color: white;
+  font-size: 20px;
+  text-align: center;
+  line-height: 20px;
   pointer-events: none;
+  text-shadow: 1px 1px 0 #000;
+}
+
+#motd-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.6);
+  padding: 20px 60px;
+  min-width: 400px;
+  border-radius: 8px;
+  text-align: center;
+  pointer-events: none;
+  z-index: 100;
+  animation: fadeOut 5s forwards;
+  animation-delay: 3s;
+}
+
+#motd-text {
+  color: #ffff55; /* Minecraft yellow */
+  font-family: 'Minecraft', monospace;
+  font-size: 24px;
+  text-shadow: 2px 2px 0 #000;
+}
+
+#health-bar-container {
+  position: absolute;
+  bottom: 90px; /* Above toolbar */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 432px; /* Same width as toolbar approx (9 * 48) */
+  height: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+}
+
+#health-bar {
+  display: flex;
+  gap: 2px;
+}
+
+.heart {
+  width: 16px;
+  height: 16px;
+  background-image: url('assets/textures/gui/icons.png'); /* Assuming we have icons, or use CSS shapes */
+  background-size: cover;
+  /* Fallback if no image */
+  background-color: red;
+  mask-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M8 14s-6-3.5-6-8c0-2.5 2-4 4-4 2.5 0 4 2 4 2s1.5-2 4-2c2 0 4 1.5 4 4 0 4.5-6 8-6 8z" fill="white"/></svg>');
+  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M8 14s-6-3.5-6-8c0-2.5 2-4 4-4 2.5 0 4 2 4 2s1.5-2 4-2c2 0 4 1.5 4 4 0 4.5-6 8-6 8z" fill="white"/></svg>');
+  mask-size: contain;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+}
+
+.heart.half {
+    background: linear-gradient(to right, red 50%, transparent 50%);
+}
+
+.heart.empty {
+    background-color: #555;
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; visibility: hidden; }
 }
 
 #debug {

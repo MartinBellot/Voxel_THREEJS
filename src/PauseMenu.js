@@ -36,6 +36,9 @@ export class PauseMenu {
       const value = parseInt(e.target.value);
       this.renderDistanceValue.innerText = value;
       
+      // Save to localStorage
+      localStorage.setItem('voxel_render_distance', value);
+
       // Update game render distance
       if (this.game.world) {
         this.game.world.setRenderDistance(value);
