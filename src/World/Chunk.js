@@ -27,6 +27,87 @@ export class Chunk {
     this.generateMesh();
   }
 
+  generateHugeTree(x, y, z) {
+      const height = 40 + Math.floor(Math.random() * 20); // 40-60 blocks high
+      const trunkRadius = 2;
+      
+      // Trunk
+      for (let i = 0; i < height; i++) {
+          for (let tx = -trunkRadius; tx <= trunkRadius; tx++) {
+              for (let tz = -trunkRadius; tz <= trunkRadius; tz++) {
+                  // Rounded trunk
+                  if (tx*tx + tz*tz <= trunkRadius*trunkRadius + 1) {
+                      this.setBlock(x + tx, y + i + 1, z + tz, BlockType.MAGIC_LOG);
+                  }
+              }
+          }
+      }
+      
+      // Roots
+      const rootHeight = 8;
+      for (let i = 0; i < rootHeight; i++) {
+          const r = trunkRadius + (rootHeight - i) * 0.5;
+          for (let tx = -Math.ceil(r); tx <= Math.ceil(r); tx++) {
+              for (let tz = -Math.ceil(r); tz <= Math.ceil(r); tz++) {
+                  if (Math.abs(tx) > trunkRadius || Math.abs(tz) > trunkRadius) {
+                      // Only outside trunk
+                      if (tx*tx + tz*tz <= r*r && Math.random() < 0.6) {
+                           this.setBlock(x + tx, y + i, z + tz, BlockType.MAGIC_LOG);
+                      }
+                  }
+              }
+          }
+      }
+      
+      // Canopy
+      const canopyRadius = 12;
+      const canopyHeight = 15;
+      const canopyStart = y + height - 5;
+      
+      for (let cy = canopyStart; cy < canopyStart + canopyHeight; cy++) {
+          for (let cx = -canopyRadius; cx <= canopyRadius; cx++) {
+              for (let cz = -canopyRadius; cz <= canopyRadius; cz++) {
+                  const dist = Math.sqrt(cx*cx + cz*cz + (cy - (canopyStart + canopyHeight/2))**2);
+                  if (dist < canopyRadius) {
+                      if (Math.random() < 0.8) {
+                          // Don't overwrite log
+                          const current = this.getBlock(x + cx, cy, z + cz);
+                          if (current !== BlockType.MAGIC_LOG) {
+                              this.setBlock(x + cx, cy, z + cz, BlockType.MAGIC_LEAVES);
+                          }
+                      }
+                  }
+              }
+          }
+      }
+      
+      // Hanging vines/leaves
+      for (let cx = -canopyRadius; cx <= canopyRadius; cx++) {
+          for (let cz = -canopyRadius; cz <= canopyRadius; cz++) {
+              if (Math.random() < 0.1) {
+                  const vineLength = Math.floor(Math.random() * 10);
+                  for (let i = 0; i < vineLength; i++) {
+                      const by = canopyStart - i;
+                      if (this.getBlock(x + cx, by, z + cz) === BlockType.AIR) {
+                          this.setBlock(x + cx, by, z + cz, BlockType.MAGIC_LEAVES);
+                      }
+                  }
+              }
+          }
+      }
+  }
+
+  setBlock(x, y, z, type) {
+      if (x >= 0 && x < this.size && z >= 0 && z < this.size && y >= 0 && y < this.height) {
+          const index = this.getBlockIndex(x, y, z);
+          this.data[index] = type;
+      } else {
+          // Neighbor chunk modification not supported in generation phase easily
+          // But we can try if world is available
+          // For now, ignore out of bounds for trees to avoid complexity
+      }
+  }
+
   isBlockOpaque(id) {
     if (id === BlockType.AIR || id === BlockType.WATER || id === BlockType.TORCH || id === BlockType.CACTUS || id === BlockType.LEAVES || id === BlockType.PINE_LEAVES || id === BlockType.MUSHROOM_STEM || id === BlockType.MUSHROOM_CAP || id === BlockType.SAPLING || id === BlockType.FLOWER || id === BlockType.CLOUD) return false;
     return true;
@@ -73,6 +154,66 @@ export class Chunk {
       // The merged mesh is already efficient.
   }
 
+  generateMagicalBlock(index, x, y, z) {
+      // Floating islands generation
+      // Use 3D noise to create organic floating shapes
+      
+      // Base density from 3D noise
+      const scale = 0.02;
+      let density = this.world.noise3D(x * scale, y * scale, z * scale);
+      
+      // Create layers of islands
+      // Layer 1: Y=80 to Y=150
+      // Layer 2: Y=200 to Y=300
+      
+      const layer1Center = 120;
+      const layer2Center = 250;
+      const layerThickness = 40;
+      
+      let dist1 = Math.abs(y - layer1Center);
+      let dist2 = Math.abs(y - layer2Center);
+      
+      // Gradient to fade out density away from centers
+      let gradient = 0;
+      if (dist1 < layerThickness * 2) {
+          gradient = 1 - (dist1 / (layerThickness * 2));
+      } else if (dist2 < layerThickness * 2) {
+          gradient = 1 - (dist2 / (layerThickness * 2));
+      }
+      
+      // Combine
+      const finalDensity = density + gradient * 0.8;
+      
+      if (finalDensity > 0.6) {
+          // Surface detection (simple)
+          // We can't easily know if it's surface in a single pass without checking neighbors or 2nd pass.
+          // But we can use the density value. If it's close to threshold, it's near surface.
+          
+          if (finalDensity < 0.65) {
+              this.data[index] = BlockType.GRASS;
+              // Chance for huge tree
+              if (Math.random() < 0.005 && y > 100) { // Rare
+                  // Store tree location for decoration pass? 
+                  // Or just mark it.
+                  // Better to do trees in decorateChunk.
+              }
+          } else if (finalDensity < 0.7) {
+              this.data[index] = BlockType.MAGIC_DIRT;
+          } else {
+              this.data[index] = BlockType.MAGIC_STONE;
+          }
+          
+          // Ores
+          if (this.data[index] === BlockType.MAGIC_STONE) {
+              if (Math.random() < 0.01) {
+                  // Maybe magic crystals? For now standard coal or nothing
+              }
+          }
+      } else {
+          this.data[index] = BlockType.AIR;
+      }
+  }
+
   generateData() {
     // ...existing code...
     // Initialise le tableau de données
@@ -84,6 +225,11 @@ export class Chunk {
         const worldZ = this.z * this.size + z;
         
         const biome = this.world.getBiome(worldX, worldZ);
+
+        if (biome === 'Magical') {
+            this.generateMagicalBlock(index, worldX, y, worldZ);
+            continue;
+        }
 
         // Génération de terrain basique avec bruit
         const noiseValue = this.world.noise3D(worldX * 0.05, 0, worldZ * 0.05); // Pour les grottes
@@ -293,8 +439,33 @@ export class Chunk {
         for (let z = 0; z < this.size; z++) {
             const worldX = this.x * this.size + x;
             const worldZ = this.z * this.size + z;
-            const surfaceHeight = this.world.getHeight(worldX, worldZ);
             const biome = this.world.getBiome(worldX, worldZ);
+
+            if (biome === 'Magical') {
+                // Magical World Decoration
+                // Iterate Y to find surface
+                // Since we have multiple islands, we might have multiple surfaces.
+                // We should scan from top to bottom or bottom to top.
+                
+                for (let y = this.height - 1; y > 0; y--) {
+                    const index = this.getBlockIndex(x, y, z);
+                    const block = this.data[index];
+                    
+                    if (block === BlockType.GRASS) {
+                        // Found a surface
+                        // Chance for huge tree
+                        // Use noise to determine tree placement
+                        const treeNoise = this.world.noise2D(worldX * 0.05, worldZ * 0.05);
+                        // Very sparse but huge
+                        if (treeNoise > 0.7 && Math.random() < 0.02) {
+                            this.generateHugeTree(x, y, z);
+                        }
+                    }
+                }
+                continue;
+            }
+            
+            const surfaceHeight = this.world.getHeight(worldX, worldZ);
             
             // Check block below to prevent floating trees
             if (surfaceHeight > 0) {

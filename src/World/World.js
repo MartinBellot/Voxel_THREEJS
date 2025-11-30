@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createNoise3D, createNoise2D } from 'simplex-noise';
 import { Chunk } from './Chunk.js';
 import { SeededRandom } from '../Utils/SeededRandom.js';
+import { BlockType } from './Block.js';
 
 export class World {
   constructor(game) {
@@ -474,6 +475,13 @@ export class World {
     if (localZ < 0) localZ += this.chunkSize;
     
     chunk.setBlock(localX, Math.floor(y), localZ, type);
+
+    // Check for Portal Creation
+    if (type === BlockType.MAGIC_STONE) {
+        if (this.game.portalManager) {
+            this.game.portalManager.checkPortal(this, x, y, z);
+        }
+    }
 
     // Update neighbor chunks if block is on the edge
     if (localX === 0) {

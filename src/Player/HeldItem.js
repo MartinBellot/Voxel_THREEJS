@@ -206,6 +206,21 @@ export class HeldItem {
         uvAttribute.needsUpdate = true;
     }
 
+    updateTexture(textureName) {
+        if (!this.mesh || !this.mesh.material || !this.mesh.material.map) return;
+        
+        const texturePath = `assets/textures/item/${textureName}`;
+        // Check if texture is already loaded to avoid reloading? 
+        // TextureLoader caches, but we can optimize if needed.
+        
+        const texture = this.textureLoader.load(texturePath);
+        texture.magFilter = THREE.NearestFilter;
+        texture.minFilter = THREE.NearestFilter;
+        
+        this.mesh.material.map = texture;
+        this.mesh.material.needsUpdate = true;
+    }
+
     render(renderer) {
         renderer.clearDepth();
         renderer.render(this.scene, this.camera);

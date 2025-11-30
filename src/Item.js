@@ -1,3 +1,4 @@
+import { texture } from 'three/tsl';
 import { BlockType } from './World/Block.js';
 
 export const ItemType = {
@@ -5,6 +6,8 @@ export const ItemType = {
   TORCH: 100,
   CARROT: 200,
   SWORD: 300,
+  BOW: 301,
+  ARROW: 302,
   SPAWN_PIG: 400
 };
 
@@ -25,9 +28,18 @@ export const ItemDefinitions = {
   [ItemType.MUSHROOM_CAP]: { name: 'Mushroom Cap', blockType: BlockType.MUSHROOM_CAP, isPlaceable: true },
   [ItemType.MYCELIUM]: { name: 'Mycelium', blockType: BlockType.MYCELIUM, isPlaceable: true },
   
+  // Magical World Items
+  [ItemType.MAGIC_STONE]: { name: 'Magic Stone', blockType: BlockType.MAGIC_STONE, isPlaceable: true, texture: '../block/magic_stone.png' },
+  [ItemType.MAGIC_DIRT]: { name: 'Magic Dirt', blockType: BlockType.MAGIC_DIRT, isPlaceable: true, texture: '../block/magic_dirt.png' },
+  [ItemType.MAGIC_LOG]: { name: 'Magic Log', blockType: BlockType.MAGIC_LOG, isPlaceable: true, texture: '../block/magic_log.png' },
+  [ItemType.MAGIC_LEAVES]: { name: 'Magic Leaves', blockType: BlockType.MAGIC_LEAVES, isPlaceable: true, texture: '../block/magic_leaves.png' },
+  [ItemType.MAGIC_WATER]: { name: 'Magic Water', blockType: BlockType.MAGIC_WATER, isPlaceable: true, texture: '../block/magic_water.png' },
+
   // Special Items
   [ItemType.TORCH]: { name: 'Torch', blockType: 100, isPlaceable: true },
   [ItemType.CARROT]: { name: 'Carrot', isPlaceable: false, texture: 'carrot.png' },
   [ItemType.SWORD]: { name: 'Sword', isPlaceable: false, texture: 'sword.png' },
-  [ItemType.SPAWN_PIG]: { name: 'Spawn Pig', isPlaceable: false, texture: '../entities/pig.png' }
+  [ItemType.BOW]: { name: 'Bow', isPlaceable: false, texture: 'bow.png', class: 'Bow' },
+  [ItemType.ARROW]: { name: 'Arrow', isPlaceable: false, texture: 'arrow.png' },
+  [ItemType.SPAWN_PIG]: { name: 'Spawn Pig', isPlaceable: false, texture: '../entities/pig.png' },
 };

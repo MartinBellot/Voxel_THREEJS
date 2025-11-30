@@ -9,6 +9,7 @@ import { ItemDefinitions, ItemType } from '../Item.js';
 import { DroppedItem } from '../World/DroppedItem.js';
 import { HeldItem } from './HeldItem.js';
 import { PlayerMesh } from './PlayerMesh.js';
+import { Bow } from '../Items/Bow.js';
 
 export class Player {
   constructor(game) {
@@ -55,6 +56,7 @@ export class Player {
     this.inventoryUI = new InventoryUI(this.game, this.inventory);
     
     this.heldItem = new HeldItem(this.game, this);
+    this.currentItemLogic = null;
     this.lastSelectedSlot = -1;
     this.lastItemType = null;
     this.lastItemCount = -1;
@@ -252,9 +254,23 @@ export class Player {
         if (event.button === 0) { // Clic gauche
           this.breakBlock();
         } else if (event.button === 2) { // Clic droit
-          this.placeBlock();
+          if (this.currentItemLogic) {
+              this.currentItemLogic.onUseStart(this);
+          } else {
+              this.placeBlock();
+          }
         }
       }
+    });
+
+    document.addEventListener('mouseup', (event) => {
+        if (this.controls.isLocked && !this.inventoryUI.isOpen) {
+            if (event.button === 2) { // Clic droit
+                if (this.currentItemLogic) {
+                    this.currentItemLogic.onUseEnd(this);
+                }
+            }
+        }
     });
 
     // Mouse Wheel for Hotbar
@@ -539,9 +555,22 @@ export class Player {
         
         this.heldItem.setItem(currentItemType);
         
+        // Update Item Logic
+        this.currentItemLogic = null;
+        if (currentItemType) {
+            const itemDef = ItemDefinitions[currentItemType];
+            if (itemDef && itemDef.class === 'Bow') {
+                this.currentItemLogic = new Bow(this.game);
+            }
+        }
+        
         this.lastSelectedSlot = this.inventory.selectedSlot;
         this.lastItemType = currentItemType;
         this.lastItemCount = currentItemCount;
+    }
+    
+    if (this.currentItemLogic) {
+        this.currentItemLogic.onUpdate(delta, this);
     }
     
     this.heldItem.update(delta);

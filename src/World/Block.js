@@ -25,7 +25,13 @@ export const BlockType = {
   MUSHROOM_STEM_PORE: 20,
   RED_MUSHROOM_BLOCK: 21,
   BROWN_MUSHROOM_BLOCK: 22,
-  SPORE_BLOCK: 23
+  SPORE_BLOCK: 23,
+  // Magical World Blocks
+  MAGIC_STONE: 30,
+  MAGIC_DIRT: 31,
+  MAGIC_LOG: 33,
+  MAGIC_LEAVES: 34,
+  MAGIC_WATER: 36
 };
 
 export const BlockModels = {
@@ -36,6 +42,44 @@ export const BlockModels = {
 
 export const BlockDefinitions = {
   [BlockType.AIR]: { visible: false },
+  [BlockType.MAGIC_STONE]: { 
+      color: 0x4B0082, 
+      visible: true, 
+      model: BlockModels.CUBE,
+      textures: { all: 'magic_stone.png' }
+  },
+  [BlockType.MAGIC_DIRT]: { 
+      color: 0x8A2BE2, 
+      visible: true, 
+      model: BlockModels.CUBE,
+      textures: { all: 'dirt.png' }
+  },
+  [BlockType.MAGIC_LOG]: { 
+      color: 0x483D8B, 
+      visible: true, 
+      model: BlockModels.CUBE,
+      textures: {
+          top: 'magic_log_top.png',
+          bottom: 'magic_log_top.png',
+          side: 'magic_log.png'
+      }
+  },
+  [BlockType.MAGIC_LEAVES]: { 
+      color: 0x00CED1, 
+      visible: true, 
+      model: BlockModels.CUBE, 
+      transparent: true, 
+      opacity: 0.9,
+      textures: { all: 'magic_leaves.png' }
+  },
+  [BlockType.MAGIC_WATER]: { 
+      color: 0x00FFFF, 
+      visible: true, 
+      model: BlockModels.CUBE, 
+      transparent: true, 
+      opacity: 0.6,
+      textures: { all: 'water_overlay.png' }
+  },
   [BlockType.CLOUD]: { color: 0xFFFFFF, visible: true, model: BlockModels.CUBE, transparent: true, opacity: 0.8 },
   [BlockType.STONE]: { color: 0x888888, visible: true, model: BlockModels.CUBE, textures: { all: 'stone.png' } },
   [BlockType.DIRT]: { 
