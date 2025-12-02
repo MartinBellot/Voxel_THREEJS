@@ -6,6 +6,7 @@ export class Menu {
     this.usernameInput = document.getElementById('username-input');
     this.renderDistanceInput = document.getElementById('render-distance-input');
     this.renderDistanceValue = document.getElementById('render-distance-value');
+    this.rendererSelect = document.getElementById('renderer-select');
 
     this.setupEventListeners();
     
@@ -23,6 +24,12 @@ export class Menu {
     if (savedRenderDistance) {
       this.renderDistanceInput.value = savedRenderDistance;
       this.renderDistanceValue.innerText = savedRenderDistance;
+    }
+
+    // Load renderer choice from localStorage
+    const savedRenderer = localStorage.getItem('voxel_renderer');
+    if (savedRenderer) {
+      this.rendererSelect.value = savedRenderer;
     }
   }
 
@@ -45,20 +52,23 @@ export class Menu {
     });
   }
 
-  startGame() {
+  async startGame() {
     const username = this.usernameInput.value.trim() || "Player";
     const renderDistance = parseInt(this.renderDistanceInput.value);
+    const rendererType = this.rendererSelect.value;
 
     // Save username to localStorage
     localStorage.setItem('voxel_username', username);
     // Save render distance to localStorage
     localStorage.setItem('voxel_render_distance', renderDistance);
+    // Save renderer choice to localStorage
+    localStorage.setItem('voxel_renderer', rendererType);
 
     // Hide menu
     this.menuElement.style.display = 'none';
     
     // Start the game
-    this.game.start(username, renderDistance);
+    await this.game.start(username, renderDistance, rendererType);
   }
 
   show() {

@@ -871,7 +871,7 @@ export class Chunk {
               this.addTorch(x, y, z, positions, normals, colors, uvs, color);
 
               // Add PointLight for Torch
-              // Couleur orange/jaune (0xFFAA00), intensité 2.0, distance 30 (pour couvrir ~8 blocs)
+              // Couleur orange/jaune (0xFFAA00), intensité 10, distance 30 (pour couvrir ~8 blocs)
               const light = new THREE.PointLight(0xFFAA00, 10, 30);
               light.position.set(
                   this.x * size + x + 0.5,

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { WebGPURenderer } from 'three/webgpu';
 import { World } from './World/World.js';
 import { Player } from './Player/Player.js';
 import { Clouds } from './World/Clouds.js';
@@ -24,11 +25,9 @@ export class Game {
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.camera.position.set(0, 10, 0);
 
-    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas });
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(1); // Performance optimization: use 1 instead of devicePixelRatio
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.autoClear = false; // Manual clear for overlay rendering
+    // Renderer will be created in init()
+    this.renderer = null;
+    this.rendererType = 'webgpu'; // Default
 
     this.clock = new THREE.Clock();
     this.frames = 0;
@@ -64,7 +63,26 @@ export class Game {
     this.setupLights();
     this.setupCelestialBodies();
     this.setupEvents();
-    
+  }
+
+  async init(rendererType = 'webgpu') {
+    this.rendererType = rendererType;
+
+    // Create renderer based on type
+    if (rendererType === 'webgpu') {
+      this.renderer = new WebGPURenderer({ canvas: this.canvas, antialias: false });
+      await this.renderer.init();
+    } else {
+      // WebGL fallback
+      this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
+    }
+
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setPixelRatio(1);
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.autoClear = false;
+
+    // Start animation loop
     this.animate();
   }
 
@@ -199,7 +217,9 @@ export class Game {
     window.addEventListener('resize', () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
+      if (this.renderer) {
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+      }
     });
 
     window.addEventListener('keydown', (event) => {
@@ -400,7 +420,12 @@ export class Game {
     }
   }
 
-  start(username, renderDistance) {
+  async start(username, renderDistance, rendererType = 'webgpu') {
+    // Initialize renderer if not already done
+    if (!this.renderer) {
+      await this.init(rendererType);
+    }
+
     this.world.renderDistance = renderDistance;
     this.world.farRenderDistance = renderDistance + 4; // Load a bit more than high detail
     
@@ -460,11 +485,13 @@ export class Game {
         this.minimap.update();
     }
 
-    this.renderer.clear();
-    this.renderer.render(this.scene, this.camera);
-    
-    if (this.player && this.player.heldItem) {
-        this.player.heldItem.render(this.renderer);
+    if (this.renderer) {
+      this.renderer.clear();
+      this.renderer.render(this.scene, this.camera);
+      
+      if (this.player && this.player.heldItem) {
+          this.player.heldItem.render(this.renderer);
+      }
     }
   }
 }
