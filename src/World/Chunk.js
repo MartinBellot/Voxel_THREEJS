@@ -2146,59 +2146,64 @@ export class Chunk {
       const uv = this._getBlockUVs(blockId);
       const r = color.r, g = color.g, b = color.b;
       const t = 3 / 16; // door thickness
+      const offset = (1 - t) / 2; // center the door in the block
       const isOpen = def && def.doorOpen;
 
       if (isOpen) {
-          // Open door: thin slab on the -x edge (rotated 90°)
+          // Open door: thin slab centered on X axis (perpendicular to Z)
+          const x0 = x + offset;
+          const x1 = x + offset + t;
           // Front (+x)
           this._addQuad(positions, normals, colors, uvs,
-              [x + t, y, z], [x + t, y + 1, z], [x + t, y + 1, z + 1], [x + t, y, z + 1],
+              [x1, y, z], [x1, y + 1, z], [x1, y + 1, z + 1], [x1, y, z + 1],
               [1, 0, 0], uv, r, g, b);
           // Back (-x)
           this._addQuad(positions, normals, colors, uvs,
-              [x, y, z + 1], [x, y + 1, z + 1], [x, y + 1, z], [x, y, z],
+              [x0, y, z + 1], [x0, y + 1, z + 1], [x0, y + 1, z], [x0, y, z],
               [-1, 0, 0], uv, r, g, b);
           // Top
           this._addQuad(positions, normals, colors, uvs,
-              [x, y + 1, z + 1], [x + t, y + 1, z + 1], [x + t, y + 1, z], [x, y + 1, z],
+              [x0, y + 1, z + 1], [x1, y + 1, z + 1], [x1, y + 1, z], [x0, y + 1, z],
               [0, 1, 0], uv, r, g, b);
           // Bottom
           this._addQuad(positions, normals, colors, uvs,
-              [x, y, z], [x + t, y, z], [x + t, y, z + 1], [x, y, z + 1],
+              [x0, y, z], [x1, y, z], [x1, y, z + 1], [x0, y, z + 1],
               [0, -1, 0], uv, r, g, b);
-          // Front face (+z)
+          // Side (+z)
           this._addQuad(positions, normals, colors, uvs,
-              [x, y, z + 1], [x, y + 1, z + 1], [x + t, y + 1, z + 1], [x + t, y, z + 1],
+              [x0, y, z + 1], [x0, y + 1, z + 1], [x1, y + 1, z + 1], [x1, y, z + 1],
               [0, 0, 1], uv, r, g, b);
-          // Back face (-z)
+          // Side (-z)
           this._addQuad(positions, normals, colors, uvs,
-              [x + t, y, z], [x + t, y + 1, z], [x, y + 1, z], [x, y, z],
+              [x1, y, z], [x1, y + 1, z], [x0, y + 1, z], [x0, y, z],
               [0, 0, -1], uv, r, g, b);
       } else {
-          // Closed door: thin slab on the -z edge
+          // Closed door: thin slab centered on Z axis
+          const z0 = z + offset;
+          const z1 = z + offset + t;
           // Front (+z)
           this._addQuad(positions, normals, colors, uvs,
-              [x, y, z + t], [x, y + 1, z + t], [x + 1, y + 1, z + t], [x + 1, y, z + t],
+              [x, y, z1], [x, y + 1, z1], [x + 1, y + 1, z1], [x + 1, y, z1],
               [0, 0, 1], uv, r, g, b);
           // Back (-z)
           this._addQuad(positions, normals, colors, uvs,
-              [x + 1, y, z], [x + 1, y + 1, z], [x, y + 1, z], [x, y, z],
+              [x + 1, y, z0], [x + 1, y + 1, z0], [x, y + 1, z0], [x, y, z0],
               [0, 0, -1], uv, r, g, b);
           // Top
           this._addQuad(positions, normals, colors, uvs,
-              [x, y + 1, z + t], [x, y + 1, z], [x + 1, y + 1, z], [x + 1, y + 1, z + t],
+              [x, y + 1, z1], [x, y + 1, z0], [x + 1, y + 1, z0], [x + 1, y + 1, z1],
               [0, 1, 0], uv, r, g, b);
           // Bottom
           this._addQuad(positions, normals, colors, uvs,
-              [x, y, z], [x, y, z + t], [x + 1, y, z + t], [x + 1, y, z],
+              [x, y, z0], [x, y, z1], [x + 1, y, z1], [x + 1, y, z0],
               [0, -1, 0], uv, r, g, b);
           // Right (+x)
           this._addQuad(positions, normals, colors, uvs,
-              [x + 1, y, z + t], [x + 1, y + 1, z + t], [x + 1, y + 1, z], [x + 1, y, z],
+              [x + 1, y, z1], [x + 1, y + 1, z1], [x + 1, y + 1, z0], [x + 1, y, z0],
               [1, 0, 0], uv, r, g, b);
           // Left (-x)
           this._addQuad(positions, normals, colors, uvs,
-              [x, y, z], [x, y + 1, z], [x, y + 1, z + t], [x, y, z + t],
+              [x, y, z0], [x, y + 1, z0], [x, y + 1, z1], [x, y, z1],
               [-1, 0, 0], uv, r, g, b);
       }
   }

@@ -639,6 +639,8 @@ export class World {
     
     if (localX < 0) localX += this.chunkSize;
     if (localZ < 0) localZ += this.chunkSize;
+
+    const previousType = chunk.getBlock(localX, Math.floor(y), localZ);
     
     chunk.setBlock(localX, Math.floor(y), localZ, type);
 
@@ -667,6 +669,9 @@ export class World {
     }
     // Trigger liquid updates for nearby blocks
     if (type === BlockType.AIR) {
+      if (previousType === BlockType.WATER || previousType === BlockType.LAVA) {
+        this.liquidSources.delete(`${x},${y},${z}`);
+      }
       this.scheduleLiquidRetraction(x, y, z);
       this.scheduleLiquidUpdate(x, y, z);
     }
@@ -817,6 +822,24 @@ export class World {
       const { x, y, z, type, dist } = entry;
       const current = this.getBlock(x, y, z);
       if (current !== type) continue;
+
+      // Minecraft-like infinite source rule (simplified):
+      // a non-source water block with 2 adjacent water sources and solid/water below becomes source.
+      if (type === BlockType.WATER && !this.liquidSources.has(`${x},${y},${z}`)) {
+        let adjacentSources = 0;
+        const belowBlock = this.getBlock(x, y - 1, z);
+        const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+        for (const [dx, dz] of dirs) {
+          const nx = x + dx;
+          const nz = z + dz;
+          if (this.getBlock(nx, y, nz) === BlockType.WATER && this.isLiquidSource(nx, y, nz)) {
+            adjacentSources++;
+          }
+        }
+        if (adjacentSources >= 2 && (isSolid(belowBlock) || belowBlock === BlockType.WATER)) {
+          this.liquidSources.add(`${x},${y},${z}`);
+        }
+      }
 
       const flowRange = type === BlockType.WATER ? 7 : 3;
 

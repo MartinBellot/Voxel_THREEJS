@@ -1115,7 +1115,7 @@ export class Player {
               // Check if right-clicking an interactive block
               const intersection = this.getIntersection();
               if (intersection) {
-                const hitPoint = intersection.point.clone().sub(intersection.face.normal.clone().multiplyScalar(0.5));
+                const hitPoint = intersection.point.clone().add(intersection.face.normal.clone().multiplyScalar(-0.1));
                 const bx = Math.floor(hitPoint.x);
                 const by = Math.floor(hitPoint.y);
                 const bz = Math.floor(hitPoint.z);
