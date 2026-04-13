@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Arrow } from '../Entities/Arrow.js';
 import { ItemType } from '../Item.js';
+import { getEnchantmentBonus } from '../EnchantingSystem.js';
 
 export class Bow {
     constructor(game) {
@@ -12,8 +13,13 @@ export class Bow {
     }
 
     onUseStart(player) {
-        // Check for arrows
-        const hasArrow = player.inventory.slots.some(slot => slot && slot.type === ItemType.ARROW && slot.count > 0);
+        // Get bow enchantments
+        const bowItem = player.inventory.getItem(player.inventory.selectedSlot);
+        const hasInfinity = bowItem && bowItem.enchantments && 
+            bowItem.enchantments.some(e => e.id === 'infinity');
+
+        // Check for arrows (Infinity skips check)
+        const hasArrow = hasInfinity || player.inventory.slots.some(slot => slot && slot.type === ItemType.ARROW && slot.count > 0);
         if (!hasArrow) {
             console.log("No arrows!");
             return;
@@ -38,12 +44,16 @@ export class Bow {
             player.heldItem.updateTexture('bow.png');
         }
         
+        // Get bow enchantments
+        const bowItem = player.inventory.getItem(player.inventory.selectedSlot);
+        const hasInfinity = bowItem && bowItem.enchantments && 
+            bowItem.enchantments.some(e => e.id === 'infinity');
+
         // Check again and consume
         const arrowSlotIndex = player.inventory.slots.findIndex(slot => slot && slot.type === ItemType.ARROW && slot.count > 0);
-        if (arrowSlotIndex === -1) {
+        if (arrowSlotIndex === -1 && !hasInfinity) {
             this.isCharging = false;
             this.chargeTime = 0;
-            // Reset mesh pos
             if (player.heldItem && player.heldItem.mesh) {
                  player.heldItem.mesh.position.copy(player.heldItem.basePosition);
             }
@@ -52,13 +62,25 @@ export class Bow {
 
         const chargeLevel = Math.min(this.chargeTime / this.maxChargeTime, 1.0);
         if (chargeLevel > 0.1) {
-            this.fire(player, chargeLevel);
+            // Power enchantment: extra damage
+            let damageBonus = 0;
+            let punchBonus = 0;
+            let isFlaming = false;
+            if (bowItem && bowItem.enchantments) {
+                damageBonus = getEnchantmentBonus(bowItem.enchantments, 'damage');
+                punchBonus = getEnchantmentBonus(bowItem.enchantments, 'knockback');
+                isFlaming = bowItem.enchantments.some(e => e.id === 'flame');
+            }
+
+            this.fire(player, chargeLevel, damageBonus, punchBonus, isFlaming);
             
-            // Consume Arrow
-            player.inventory.removeItem(arrowSlotIndex, 1);
-            player.inventoryUI.updateHotbar();
-            if (player.inventoryUI.isOpen) {
-                player.inventoryUI.updateSlots();
+            // Infinity: don't consume arrow
+            if (!hasInfinity && arrowSlotIndex !== -1) {
+                player.inventory.removeItem(arrowSlotIndex, 1);
+                player.inventoryUI.updateHotbar();
+                if (player.inventoryUI.isOpen) {
+                    player.inventoryUI.updateSlots();
+                }
             }
         }
         
@@ -105,11 +127,14 @@ export class Bow {
         }
     }
 
-    fire(player, force) {
+    fire(player, force, damageBonus = 0, punchBonus = 0, isFlaming = false) {
         const direction = new THREE.Vector3();
         player.camera.getWorldDirection(direction);
         
         const arrow = new Arrow(this.game, player.camera.position, direction, force);
+        arrow.damageBonus = damageBonus;
+        arrow.punchBonus = punchBonus;
+        arrow.isFlaming = isFlaming;
         this.game.entities.push(arrow);
     }
 }

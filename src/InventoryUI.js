@@ -241,9 +241,8 @@ export class InventoryUI {
     pageNav.appendChild(this.creativePageLabel);
     pageNav.appendChild(nextBtn);
 
-    // Insert tab bar and page nav before/after grid
     creativeGrid.parentNode.insertBefore(tabBar, creativeGrid);
-    creativeGrid.parentNode.insertBefore(pageNav, creativeGrid.nextSibling);
+    creativeGrid.parentNode.insertBefore(pageNav, creativeGrid);
 
     this.creativeGrid = creativeGrid;
     this.renderCreativeGrid();

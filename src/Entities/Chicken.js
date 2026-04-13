@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ItemType } from '../Item.js';
 
 export class Chicken {
     constructor(game, position) {
@@ -29,6 +30,11 @@ export class Chicken {
         this.depth = 0.4 * 1.5;
         this.height = 0.7 * 1.5;
         this.onGround = false;
+
+        // Combat
+        this.health = 4;
+        this.maxHealth = 4;
+        this.type = 'chicken';
     }
 
     createBody() {
@@ -218,6 +224,25 @@ export class Chicken {
         
         // Head bob
         this.head.rotation.x = Math.sin(this.walkTime * 0.5) * 0.1;
+    }
+
+    takeDamage(amount) {
+        this.health -= amount;
+        this.mesh.children.forEach(c => {
+            if (c.material) c.material.emissive = new THREE.Color(0.5, 0, 0);
+        });
+        setTimeout(() => {
+            this.mesh.children.forEach(c => {
+                if (c.material) c.material.emissive = new THREE.Color(0, 0, 0);
+            });
+        }, 200);
+    }
+
+    getDrops() {
+        const drops = [];
+        drops.push({ type: ItemType.RAW_CHICKEN_MEAT, count: 1 });
+        if (Math.random() < 0.5) drops.push({ type: ItemType.FEATHER, count: 1 + Math.floor(Math.random() * 2) });
+        return drops;
     }
 
     dispose() {

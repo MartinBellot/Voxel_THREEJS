@@ -126,7 +126,7 @@ export const CraftingRecipes = [
   { result: T.SHEARS, count: 1, pattern: [' I', 'I '], key: { I: T.IRON_INGOT } },
 
   // === FOOD ===
-  { result: T.BREAD, count: 1, pattern: ['WWW'], key: { W: T.POTATO } }, // Simplified
+  { result: T.BREAD, count: 1, pattern: ['WWW'], key: { W: T.WHEAT } },
   { result: T.GOLDEN_APPLE, count: 1, pattern: ['GGG', 'GAG', 'GGG'], key: { G: T.GOLD_INGOT, A: T.APPLE } },
   { result: T.COOKIE, count: 8, pattern: ['WCW'], key: { W: T.POTATO, C: T.COAL } }, // Simplified (no cocoa beans)
   { result: T.PUMPKIN_PIE, count: 1, shapeless: true, ingredients: [T.PUMPKIN, T.POTATO, T.POTATO] }, // Simplified
@@ -145,6 +145,54 @@ export const CraftingRecipes = [
 
   // === WOOL from string ===
   { result: T.WHITE_WOOL, count: 1, pattern: ['SS', 'SS'], key: { S: T.STRING } },
+
+  // === SLABS ===
+  { result: T.OAK_SLAB, count: 6, pattern: ['PPP'], key: { P: T.OAK_PLANKS } },
+  { result: T.SPRUCE_SLAB, count: 6, pattern: ['PPP'], key: { P: T.SPRUCE_PLANKS } },
+  { result: T.BIRCH_SLAB, count: 6, pattern: ['PPP'], key: { P: T.BIRCH_PLANKS } },
+  { result: T.JUNGLE_SLAB, count: 6, pattern: ['PPP'], key: { P: T.JUNGLE_PLANKS } },
+  { result: T.ACACIA_SLAB, count: 6, pattern: ['PPP'], key: { P: T.ACACIA_PLANKS } },
+  { result: T.DARK_OAK_SLAB, count: 6, pattern: ['PPP'], key: { P: T.DARK_OAK_PLANKS } },
+  { result: T.STONE_SLAB, count: 6, pattern: ['SSS'], key: { S: T.SMOOTH_STONE } },
+  { result: T.COBBLESTONE_SLAB, count: 6, pattern: ['CCC'], key: { C: T.COBBLESTONE } },
+  { result: T.STONE_BRICK_SLAB, count: 6, pattern: ['BBB'], key: { B: T.STONE_BRICKS } },
+  { result: T.SANDSTONE_SLAB, count: 6, pattern: ['SSS'], key: { S: T.SANDSTONE } },
+
+  // === STAIRS ===
+  { result: T.OAK_STAIRS, count: 4, pattern: ['P  ', 'PP ', 'PPP'], key: { P: T.OAK_PLANKS } },
+  { result: T.SPRUCE_STAIRS, count: 4, pattern: ['P  ', 'PP ', 'PPP'], key: { P: T.SPRUCE_PLANKS } },
+  { result: T.BIRCH_STAIRS, count: 4, pattern: ['P  ', 'PP ', 'PPP'], key: { P: T.BIRCH_PLANKS } },
+  { result: T.JUNGLE_STAIRS, count: 4, pattern: ['P  ', 'PP ', 'PPP'], key: { P: T.JUNGLE_PLANKS } },
+  { result: T.ACACIA_STAIRS, count: 4, pattern: ['P  ', 'PP ', 'PPP'], key: { P: T.ACACIA_PLANKS } },
+  { result: T.DARK_OAK_STAIRS, count: 4, pattern: ['P  ', 'PP ', 'PPP'], key: { P: T.DARK_OAK_PLANKS } },
+  { result: T.STONE_STAIRS, count: 4, pattern: ['S  ', 'SS ', 'SSS'], key: { S: T.STONE } },
+  { result: T.COBBLESTONE_STAIRS, count: 4, pattern: ['C  ', 'CC ', 'CCC'], key: { C: T.COBBLESTONE } },
+  { result: T.STONE_BRICK_STAIRS, count: 4, pattern: ['B  ', 'BB ', 'BBB'], key: { B: T.STONE_BRICKS } },
+  { result: T.SANDSTONE_STAIRS, count: 4, pattern: ['S  ', 'SS ', 'SSS'], key: { S: T.SANDSTONE } },
+
+  // === FENCES ===
+  { result: T.OAK_FENCE, count: 3, pattern: ['PSP', 'PSP'], key: { P: T.OAK_PLANKS, S: T.STICK } },
+  { result: T.SPRUCE_FENCE, count: 3, pattern: ['PSP', 'PSP'], key: { P: T.SPRUCE_PLANKS, S: T.STICK } },
+  { result: T.BIRCH_FENCE, count: 3, pattern: ['PSP', 'PSP'], key: { P: T.BIRCH_PLANKS, S: T.STICK } },
+  { result: T.JUNGLE_FENCE, count: 3, pattern: ['PSP', 'PSP'], key: { P: T.JUNGLE_PLANKS, S: T.STICK } },
+  { result: T.ACACIA_FENCE, count: 3, pattern: ['PSP', 'PSP'], key: { P: T.ACACIA_PLANKS, S: T.STICK } },
+  { result: T.DARK_OAK_FENCE, count: 3, pattern: ['PSP', 'PSP'], key: { P: T.DARK_OAK_PLANKS, S: T.STICK } },
+  { result: T.NETHER_BRICK_FENCE, count: 6, pattern: ['NBN', 'NBN'], key: { N: T.NETHER_BRICKS, B: T.NETHER_BRICK_ITEM } },
+
+  // === FENCE GATES ===
+  { result: T.OAK_FENCE_GATE, count: 1, pattern: ['SPS', 'SPS'], key: { S: T.STICK, P: T.OAK_PLANKS } },
+  { result: T.SPRUCE_FENCE_GATE, count: 1, pattern: ['SPS', 'SPS'], key: { S: T.STICK, P: T.SPRUCE_PLANKS } },
+  { result: T.BIRCH_FENCE_GATE, count: 1, pattern: ['SPS', 'SPS'], key: { S: T.STICK, P: T.BIRCH_PLANKS } },
+
+  // === DOORS ===
+  { result: T.OAK_DOOR_BOTTOM, count: 3, pattern: ['PP', 'PP', 'PP'], key: { P: T.OAK_PLANKS } },
+  { result: T.SPRUCE_DOOR_BOTTOM, count: 3, pattern: ['PP', 'PP', 'PP'], key: { P: T.SPRUCE_PLANKS } },
+  { result: T.IRON_DOOR_BOTTOM, count: 3, pattern: ['II', 'II', 'II'], key: { I: T.IRON_INGOT } },
+
+  // === TRAPDOORS ===
+  { result: T.OAK_TRAPDOOR, count: 2, pattern: ['PPP', 'PPP'], key: { P: T.OAK_PLANKS } },
+  { result: T.SPRUCE_TRAPDOOR, count: 2, pattern: ['PPP', 'PPP'], key: { P: T.SPRUCE_PLANKS } },
+  { result: T.IRON_TRAPDOOR, count: 1, pattern: ['II', 'II'], key: { I: T.IRON_INGOT } },
 ];
 
 // Group of planks types for the PLANKS key

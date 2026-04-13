@@ -113,7 +113,7 @@ export class Chunk {
     const def = BlockDefinitions[id];
     if (!def) return false;
     if (def.transparent || def.liquid) return false;
-    if (def.model && (def.model === BlockModels.TORCH || def.model === BlockModels.CROSS || def.model === BlockModels.GRASS || def.model === BlockModels.LADDER)) return false;
+    if (def.model && (def.model === BlockModels.TORCH || def.model === BlockModels.CROSS || def.model === BlockModels.GRASS || def.model === BlockModels.LADDER || def.model === BlockModels.SLAB || def.model === BlockModels.STAIR || def.model === BlockModels.FENCE || def.model === BlockModels.DOOR || def.model === BlockModels.TRAPDOOR)) return false;
     return true;
   }
 
@@ -1243,6 +1243,11 @@ export class Chunk {
           const isCactus = blockId === BlockType.CACTUS;
           const isCross = def.model === BlockModels.CROSS;
           const isGrass = def.model === BlockModels.GRASS;
+          const isSlab = def.model === BlockModels.SLAB;
+          const isStair = def.model === BlockModels.STAIR;
+          const isFence = def.model === BlockModels.FENCE;
+          const isDoor = def.model === BlockModels.DOOR;
+          const isTrapdoor = def.model === BlockModels.TRAPDOOR;
           
           let tintColor = null;
           if (hasAtlas && def.textures) {
@@ -1256,7 +1261,7 @@ export class Chunk {
           }
           
           // Geometry generation for Cube
-          if (!isTorch && !isCactus && !isCross && !isGrass) {
+          if (!isTorch && !isCactus && !isCross && !isGrass && !isSlab && !isStair && !isFence && !isDoor && !isTrapdoor) {
               // Check 6 faces
               // Right (x+1)
               let neighbor;
@@ -1307,6 +1312,16 @@ export class Chunk {
               this.addCross(x, y, z, positions, normals, colors, uvs, color, blockId, tintColor);
           } else if (isGrass) {
               this.addGrass(x, y, z, positions, normals, colors, uvs, color, blockId, tintColor);
+          } else if (isSlab) {
+              this.addSlab(x, y, z, positions, normals, colors, uvs, color, blockId);
+          } else if (isStair) {
+              this.addStair(x, y, z, positions, normals, colors, uvs, color, blockId);
+          } else if (isFence) {
+              this.addFence(x, y, z, positions, normals, colors, uvs, color, blockId);
+          } else if (isDoor) {
+              this.addDoor(x, y, z, positions, normals, colors, uvs, color, blockId);
+          } else if (isTrapdoor) {
+              this.addTrapdoor(x, y, z, positions, normals, colors, uvs, color, blockId);
           } else {
               // Torch Geometry only - NO PointLight (massive performance win)
               this.addTorch(x, y, z, positions, normals, colors, uvs, color);
@@ -1813,5 +1828,262 @@ export class Chunk {
       addQuad(4, 5, 6, 7, [0.707, 0, -0.707]);
       // Plane 2 Back
       addQuad(5, 4, 7, 6, [-0.707, 0, 0.707]);
+  }
+
+  // Helper: get UV rect for a block's texture
+  _getBlockUVs(blockId) {
+      const textureManager = this.game.textureManager;
+      if (!textureManager || !textureManager.atlasTexture) return { uMin: 0, uMax: 1, vMin: 0, vMax: 1 };
+      const def = BlockDefinitions[blockId];
+      const texName = def.textures ? (def.textures.all || def.textures.side) : null;
+      if (!texName) return { uMin: 0, uMax: 1, vMin: 0, vMax: 1 };
+      const rect = textureManager.getUVs(texName);
+      return rect || { uMin: 0, uMax: 1, vMin: 0, vMax: 1 };
+  }
+
+  // Helper: push a quad (2 triangles) from 4 corner positions
+  _addQuad(positions, normals, colors, uvs, v0, v1, v2, v3, normal, uv, r, g, b) {
+      // Triangle 1: v0, v1, v2
+      positions.push(v0[0], v0[1], v0[2], v1[0], v1[1], v1[2], v2[0], v2[1], v2[2]);
+      uvs.push(uv.uMin, uv.vMin, uv.uMin, uv.vMax, uv.uMax, uv.vMax);
+      // Triangle 2: v0, v2, v3
+      positions.push(v0[0], v0[1], v0[2], v2[0], v2[1], v2[2], v3[0], v3[1], v3[2]);
+      uvs.push(uv.uMin, uv.vMin, uv.uMax, uv.vMax, uv.uMax, uv.vMin);
+      for (let i = 0; i < 6; i++) {
+          normals.push(normal[0], normal[1], normal[2]);
+          colors.push(r, g, b);
+      }
+  }
+
+  addSlab(x, y, z, positions, normals, colors, uvs, color, blockId) {
+      const uv = this._getBlockUVs(blockId);
+      const r = color.r, g = color.g, b = color.b;
+      const h = 0.5; // half height
+
+      // Top face
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y + h, z + 1], [x + 1, y + h, z + 1], [x + 1, y + h, z], [x, y + h, z],
+          [0, 1, 0], uv, r, g, b);
+      // Bottom face
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y, z], [x + 1, y, z], [x + 1, y, z + 1], [x, y, z + 1],
+          [0, -1, 0], uv, r, g, b);
+      // Right (+x)
+      this._addQuad(positions, normals, colors, uvs,
+          [x + 1, y, z + 1], [x + 1, y + h, z + 1], [x + 1, y + h, z], [x + 1, y, z],
+          [1, 0, 0], uv, r, g, b);
+      // Left (-x)
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y, z], [x, y + h, z], [x, y + h, z + 1], [x, y, z + 1],
+          [-1, 0, 0], uv, r, g, b);
+      // Front (+z)
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y, z + 1], [x, y + h, z + 1], [x + 1, y + h, z + 1], [x + 1, y, z + 1],
+          [0, 0, 1], uv, r, g, b);
+      // Back (-z)
+      this._addQuad(positions, normals, colors, uvs,
+          [x + 1, y, z], [x + 1, y + h, z], [x, y + h, z], [x, y, z],
+          [0, 0, -1], uv, r, g, b);
+  }
+
+  addStair(x, y, z, positions, normals, colors, uvs, color, blockId) {
+      const uv = this._getBlockUVs(blockId);
+      const r = color.r, g = color.g, b = color.b;
+      // Bottom half (full width, half height)
+      // Bottom face
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y, z], [x + 1, y, z], [x + 1, y, z + 1], [x, y, z + 1],
+          [0, -1, 0], uv, r, g, b);
+      // Top of bottom half
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y + 0.5, z + 0.5], [x + 1, y + 0.5, z + 0.5], [x + 1, y + 0.5, z], [x, y + 0.5, z],
+          [0, 1, 0], uv, r, g, b);
+      // Top half (back half, full height)
+      // Top face
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y + 1, z + 1], [x + 1, y + 1, z + 1], [x + 1, y + 1, z + 0.5], [x, y + 1, z + 0.5],
+          [0, 1, 0], uv, r, g, b);
+      // Front face of top step
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y + 0.5, z + 0.5], [x, y + 1, z + 0.5], [x + 1, y + 1, z + 0.5], [x + 1, y + 0.5, z + 0.5],
+          [0, 0, -1], uv, r, g, b);
+      // Right face (+x) - full height
+      this._addQuad(positions, normals, colors, uvs,
+          [x + 1, y, z + 1], [x + 1, y + 1, z + 1], [x + 1, y + 1, z], [x + 1, y, z],
+          [1, 0, 0], uv, r, g, b);
+      // Left face (-x) - full height
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y, z], [x, y + 1, z], [x, y + 1, z + 1], [x, y, z + 1],
+          [-1, 0, 0], uv, r, g, b);
+      // Back face (+z) - full height
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y, z + 1], [x, y + 1, z + 1], [x + 1, y + 1, z + 1], [x + 1, y, z + 1],
+          [0, 0, 1], uv, r, g, b);
+      // Front face bottom half (-z)
+      this._addQuad(positions, normals, colors, uvs,
+          [x + 1, y, z], [x + 1, y + 0.5, z], [x, y + 0.5, z], [x, y, z],
+          [0, 0, -1], uv, r, g, b);
+  }
+
+  addFence(x, y, z, positions, normals, colors, uvs, color, blockId) {
+      const uv = this._getBlockUVs(blockId);
+      const r = color.r, g = color.g, b = color.b;
+      // Center post (4x4 pixels = 0.25x0.25)
+      const p = 0.375; // post min
+      const q = 0.625; // post max
+
+      // Post top
+      this._addQuad(positions, normals, colors, uvs,
+          [x + p, y + 1, z + q], [x + q, y + 1, z + q], [x + q, y + 1, z + p], [x + p, y + 1, z + p],
+          [0, 1, 0], uv, r, g, b);
+      // Post bottom
+      this._addQuad(positions, normals, colors, uvs,
+          [x + p, y, z + p], [x + q, y, z + p], [x + q, y, z + q], [x + p, y, z + q],
+          [0, -1, 0], uv, r, g, b);
+      // Post +x
+      this._addQuad(positions, normals, colors, uvs,
+          [x + q, y, z + q], [x + q, y + 1, z + q], [x + q, y + 1, z + p], [x + q, y, z + p],
+          [1, 0, 0], uv, r, g, b);
+      // Post -x
+      this._addQuad(positions, normals, colors, uvs,
+          [x + p, y, z + p], [x + p, y + 1, z + p], [x + p, y + 1, z + q], [x + p, y, z + q],
+          [-1, 0, 0], uv, r, g, b);
+      // Post +z
+      this._addQuad(positions, normals, colors, uvs,
+          [x + p, y, z + q], [x + p, y + 1, z + q], [x + q, y + 1, z + q], [x + q, y, z + q],
+          [0, 0, 1], uv, r, g, b);
+      // Post -z
+      this._addQuad(positions, normals, colors, uvs,
+          [x + q, y, z + p], [x + q, y + 1, z + p], [x + p, y + 1, z + p], [x + p, y, z + p],
+          [0, 0, -1], uv, r, g, b);
+
+      // Connection bars to adjacent fences/solid blocks
+      const world = this.world;
+      const wx = this.x * this.size + x;
+      const wz = this.z * this.size + z;
+      const barH1 = 0.375, barH2 = 0.5625; // lower bar
+      const barH3 = 0.75, barH4 = 0.9375;  // upper bar
+      const barW = 2 / 16; // bar thickness
+
+      const neighbors = [
+          { dx: 1, dz: 0, axis: 'x' },
+          { dx: -1, dz: 0, axis: 'x' },
+          { dx: 0, dz: 1, axis: 'z' },
+          { dx: 0, dz: -1, axis: 'z' },
+      ];
+
+      for (const nb of neighbors) {
+          const nbBlock = world.getBlock(wx + nb.dx, y, wz + nb.dz);
+          if (nbBlock === BlockType.AIR) continue;
+          const nbDef = BlockDefinitions[nbBlock];
+          if (!nbDef) continue;
+          // Connect to fences or solid cubes
+          const isFenceNb = nbDef.model === BlockModels.FENCE;
+          const isSolidNb = nbDef.model === BlockModels.CUBE && !nbDef.transparent;
+          if (!isFenceNb && !isSolidNb) continue;
+
+          // Draw 2 horizontal bars
+          for (const [bH1, bH2] of [[barH1, barH2], [barH3, barH4]]) {
+              if (nb.axis === 'x') {
+                  const x0 = nb.dx > 0 ? x + q : x;
+                  const x1 = nb.dx > 0 ? x + 1 : x + p;
+                  // Top/Bottom
+                  this._addQuad(positions, normals, colors, uvs,
+                      [x0, y + bH2, z + 0.5 + barW], [x1, y + bH2, z + 0.5 + barW], [x1, y + bH2, z + 0.5 - barW], [x0, y + bH2, z + 0.5 - barW],
+                      [0, 1, 0], uv, r, g, b);
+                  this._addQuad(positions, normals, colors, uvs,
+                      [x0, y + bH1, z + 0.5 - barW], [x1, y + bH1, z + 0.5 - barW], [x1, y + bH1, z + 0.5 + barW], [x0, y + bH1, z + 0.5 + barW],
+                      [0, -1, 0], uv, r, g, b);
+                  // +z/-z sides
+                  this._addQuad(positions, normals, colors, uvs,
+                      [x0, y + bH1, z + 0.5 + barW], [x0, y + bH2, z + 0.5 + barW], [x1, y + bH2, z + 0.5 + barW], [x1, y + bH1, z + 0.5 + barW],
+                      [0, 0, 1], uv, r, g, b);
+                  this._addQuad(positions, normals, colors, uvs,
+                      [x1, y + bH1, z + 0.5 - barW], [x1, y + bH2, z + 0.5 - barW], [x0, y + bH2, z + 0.5 - barW], [x0, y + bH1, z + 0.5 - barW],
+                      [0, 0, -1], uv, r, g, b);
+              } else {
+                  const z0 = nb.dz > 0 ? z + q : z;
+                  const z1 = nb.dz > 0 ? z + 1 : z + p;
+                  // Top/Bottom
+                  this._addQuad(positions, normals, colors, uvs,
+                      [x + 0.5 - barW, y + bH2, z0], [x + 0.5 + barW, y + bH2, z0], [x + 0.5 + barW, y + bH2, z1], [x + 0.5 - barW, y + bH2, z1],
+                      [0, 1, 0], uv, r, g, b);
+                  this._addQuad(positions, normals, colors, uvs,
+                      [x + 0.5 - barW, y + bH1, z1], [x + 0.5 + barW, y + bH1, z1], [x + 0.5 + barW, y + bH1, z0], [x + 0.5 - barW, y + bH1, z0],
+                      [0, -1, 0], uv, r, g, b);
+                  // +x/-x sides
+                  this._addQuad(positions, normals, colors, uvs,
+                      [x + 0.5 + barW, y + bH1, z0], [x + 0.5 + barW, y + bH2, z0], [x + 0.5 + barW, y + bH2, z1], [x + 0.5 + barW, y + bH1, z1],
+                      [1, 0, 0], uv, r, g, b);
+                  this._addQuad(positions, normals, colors, uvs,
+                      [x + 0.5 - barW, y + bH1, z1], [x + 0.5 - barW, y + bH2, z1], [x + 0.5 - barW, y + bH2, z0], [x + 0.5 - barW, y + bH1, z0],
+                      [-1, 0, 0], uv, r, g, b);
+              }
+          }
+      }
+  }
+
+  addDoor(x, y, z, positions, normals, colors, uvs, color, blockId) {
+      const uv = this._getBlockUVs(blockId);
+      const r = color.r, g = color.g, b = color.b;
+      const t = 3 / 16; // door thickness
+
+      // Door is a thin slab on the -z edge of the block
+      // Front (+z)
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y, z + t], [x, y + 1, z + t], [x + 1, y + 1, z + t], [x + 1, y, z + t],
+          [0, 0, 1], uv, r, g, b);
+      // Back (-z)
+      this._addQuad(positions, normals, colors, uvs,
+          [x + 1, y, z], [x + 1, y + 1, z], [x, y + 1, z], [x, y, z],
+          [0, 0, -1], uv, r, g, b);
+      // Top
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y + 1, z + t], [x, y + 1, z], [x + 1, y + 1, z], [x + 1, y + 1, z + t],
+          [0, 1, 0], uv, r, g, b);
+      // Bottom
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y, z], [x, y, z + t], [x + 1, y, z + t], [x + 1, y, z],
+          [0, -1, 0], uv, r, g, b);
+      // Right (+x)
+      this._addQuad(positions, normals, colors, uvs,
+          [x + 1, y, z + t], [x + 1, y + 1, z + t], [x + 1, y + 1, z], [x + 1, y, z],
+          [1, 0, 0], uv, r, g, b);
+      // Left (-x)
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y, z], [x, y + 1, z], [x, y + 1, z + t], [x, y, z + t],
+          [-1, 0, 0], uv, r, g, b);
+  }
+
+  addTrapdoor(x, y, z, positions, normals, colors, uvs, color, blockId) {
+      const uv = this._getBlockUVs(blockId);
+      const r = color.r, g = color.g, b = color.b;
+      const t = 3 / 16; // trapdoor thickness
+
+      // Flat at bottom of block space (closed position)
+      // Top
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y + t, z + 1], [x + 1, y + t, z + 1], [x + 1, y + t, z], [x, y + t, z],
+          [0, 1, 0], uv, r, g, b);
+      // Bottom
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y, z], [x + 1, y, z], [x + 1, y, z + 1], [x, y, z + 1],
+          [0, -1, 0], uv, r, g, b);
+      // +x
+      this._addQuad(positions, normals, colors, uvs,
+          [x + 1, y, z + 1], [x + 1, y + t, z + 1], [x + 1, y + t, z], [x + 1, y, z],
+          [1, 0, 0], uv, r, g, b);
+      // -x
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y, z], [x, y + t, z], [x, y + t, z + 1], [x, y, z + 1],
+          [-1, 0, 0], uv, r, g, b);
+      // +z
+      this._addQuad(positions, normals, colors, uvs,
+          [x, y, z + 1], [x, y + t, z + 1], [x + 1, y + t, z + 1], [x + 1, y, z + 1],
+          [0, 0, 1], uv, r, g, b);
+      // -z
+      this._addQuad(positions, normals, colors, uvs,
+          [x + 1, y, z], [x + 1, y + t, z], [x, y + t, z], [x, y, z],
+          [0, 0, -1], uv, r, g, b);
   }
 }

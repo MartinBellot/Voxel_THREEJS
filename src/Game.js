@@ -10,6 +10,7 @@ import { PauseMenu } from './PauseMenu.js';
 import { DroppedItem } from './World/DroppedItem.js';
 import { BlockType } from './World/Block.js';
 import { ItemDefinitions } from './Item.js';
+import { getEnchantmentBonus } from './EnchantingSystem.js';
 import { CraftingUI } from './CraftingUI.js';
 import { Pig } from './Entities/Pig.js';
 import { Chicken } from './Entities/Chicken.js';
@@ -633,15 +634,32 @@ export class Game {
         if (def && def.damage) {
           damage = def.damage;
         }
+        // Sharpness/Smite enchantment bonus
+        if (held.enchantments) {
+          damage += getEnchantmentBonus(held.enchantments, 'damage');
+        }
       }
 
       closest.takeDamage(damage);
 
-      // Knockback
+      // Knockback (base + enchantment)
+      let knockbackMult = 5;
+      if (held && held.enchantments) {
+        const kbBonus = getEnchantmentBonus(held.enchantments, 'knockback');
+        knockbackMult += kbBonus * 3;
+      }
       const kb = new THREE.Vector3().subVectors(closest.position, playerPos).normalize();
-      closest.velocity.x += kb.x * 5;
-      closest.velocity.z += kb.z * 5;
+      closest.velocity.x += kb.x * knockbackMult;
+      closest.velocity.z += kb.z * knockbackMult;
       closest.velocity.y += 4;
+
+      // Fire Aspect: set entity on fire
+      if (held && held.enchantments) {
+        const fireSeconds = getEnchantmentBonus(held.enchantments, 'fire_aspect');
+        if (fireSeconds > 0) {
+          closest.fireTimer = fireSeconds;
+        }
+      }
 
       return true;
     }
@@ -668,8 +686,17 @@ export class Game {
         if (entity.health <= 0) {
           if (entity.getDrops) {
             const drops = entity.getDrops();
+            // Looting enchantment: extra drops
+            const held = this.player.inventory.getItem(this.player.inventory.selectedSlot);
+            const lootingLevel = held && held.enchantments ? 
+              getEnchantmentBonus(held.enchantments, 'looting') : 0;
+
             for (const drop of drops) {
-              for (let d = 0; d < drop.count; d++) {
+              let count = drop.count;
+              if (lootingLevel > 0) {
+                count += Math.floor(Math.random() * (lootingLevel + 1));
+              }
+              for (let d = 0; d < count; d++) {
                 const dropItem = new DroppedItem(
                   this,
                   Math.floor(entity.position.x),

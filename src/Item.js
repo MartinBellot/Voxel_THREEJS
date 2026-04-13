@@ -174,6 +174,11 @@ export const ItemType = {
   NETHER_BRICK_ITEM: 632,
   GLOWSTONE_DUST: 633,
   INK_SAC: 634,
+  WHEAT_SEEDS: 635,
+  WHEAT: 636,
+  BEETROOT_SEEDS: 637,
+  PUMPKIN_SEEDS: 638,
+  MELON_SEEDS: 639,
 
   // Misc (700+)
   BUCKET: 700,
@@ -416,6 +421,54 @@ export const ItemDefinitions = {
   [ItemType.MAGIC_LEAVES]: blockItem(BlockType.MAGIC_LEAVES, 'Magic Leaves'),
   [ItemType.MAGIC_WATER]: blockItem(BlockType.MAGIC_WATER, 'Magic Water'),
 
+  // Slabs
+  [ItemType.OAK_SLAB]: blockItem(BlockType.OAK_SLAB, 'Oak Slab'),
+  [ItemType.SPRUCE_SLAB]: blockItem(BlockType.SPRUCE_SLAB, 'Spruce Slab'),
+  [ItemType.BIRCH_SLAB]: blockItem(BlockType.BIRCH_SLAB, 'Birch Slab'),
+  [ItemType.JUNGLE_SLAB]: blockItem(BlockType.JUNGLE_SLAB, 'Jungle Slab'),
+  [ItemType.ACACIA_SLAB]: blockItem(BlockType.ACACIA_SLAB, 'Acacia Slab'),
+  [ItemType.DARK_OAK_SLAB]: blockItem(BlockType.DARK_OAK_SLAB, 'Dark Oak Slab'),
+  [ItemType.STONE_SLAB]: blockItem(BlockType.STONE_SLAB, 'Stone Slab'),
+  [ItemType.COBBLESTONE_SLAB]: blockItem(BlockType.COBBLESTONE_SLAB, 'Cobblestone Slab'),
+  [ItemType.STONE_BRICK_SLAB]: blockItem(BlockType.STONE_BRICK_SLAB, 'Stone Brick Slab'),
+  [ItemType.SANDSTONE_SLAB]: blockItem(BlockType.SANDSTONE_SLAB, 'Sandstone Slab'),
+
+  // Stairs
+  [ItemType.OAK_STAIRS]: blockItem(BlockType.OAK_STAIRS, 'Oak Stairs'),
+  [ItemType.SPRUCE_STAIRS]: blockItem(BlockType.SPRUCE_STAIRS, 'Spruce Stairs'),
+  [ItemType.BIRCH_STAIRS]: blockItem(BlockType.BIRCH_STAIRS, 'Birch Stairs'),
+  [ItemType.JUNGLE_STAIRS]: blockItem(BlockType.JUNGLE_STAIRS, 'Jungle Stairs'),
+  [ItemType.ACACIA_STAIRS]: blockItem(BlockType.ACACIA_STAIRS, 'Acacia Stairs'),
+  [ItemType.DARK_OAK_STAIRS]: blockItem(BlockType.DARK_OAK_STAIRS, 'Dark Oak Stairs'),
+  [ItemType.STONE_STAIRS]: blockItem(BlockType.STONE_STAIRS, 'Stone Stairs'),
+  [ItemType.COBBLESTONE_STAIRS]: blockItem(BlockType.COBBLESTONE_STAIRS, 'Cobblestone Stairs'),
+  [ItemType.STONE_BRICK_STAIRS]: blockItem(BlockType.STONE_BRICK_STAIRS, 'Stone Brick Stairs'),
+  [ItemType.SANDSTONE_STAIRS]: blockItem(BlockType.SANDSTONE_STAIRS, 'Sandstone Stairs'),
+
+  // Fences
+  [ItemType.OAK_FENCE]: blockItem(BlockType.OAK_FENCE, 'Oak Fence'),
+  [ItemType.SPRUCE_FENCE]: blockItem(BlockType.SPRUCE_FENCE, 'Spruce Fence'),
+  [ItemType.BIRCH_FENCE]: blockItem(BlockType.BIRCH_FENCE, 'Birch Fence'),
+  [ItemType.JUNGLE_FENCE]: blockItem(BlockType.JUNGLE_FENCE, 'Jungle Fence'),
+  [ItemType.ACACIA_FENCE]: blockItem(BlockType.ACACIA_FENCE, 'Acacia Fence'),
+  [ItemType.DARK_OAK_FENCE]: blockItem(BlockType.DARK_OAK_FENCE, 'Dark Oak Fence'),
+  [ItemType.NETHER_BRICK_FENCE]: blockItem(BlockType.NETHER_BRICK_FENCE, 'Nether Brick Fence'),
+
+  // Doors
+  [ItemType.OAK_DOOR_BOTTOM]: blockItem(BlockType.OAK_DOOR_BOTTOM, 'Oak Door'),
+  [ItemType.SPRUCE_DOOR_BOTTOM]: blockItem(BlockType.SPRUCE_DOOR_BOTTOM, 'Spruce Door'),
+  [ItemType.IRON_DOOR_BOTTOM]: blockItem(BlockType.IRON_DOOR_BOTTOM, 'Iron Door'),
+
+  // Trapdoors
+  [ItemType.OAK_TRAPDOOR]: blockItem(BlockType.OAK_TRAPDOOR, 'Oak Trapdoor'),
+  [ItemType.SPRUCE_TRAPDOOR]: blockItem(BlockType.SPRUCE_TRAPDOOR, 'Spruce Trapdoor'),
+  [ItemType.IRON_TRAPDOOR]: blockItem(BlockType.IRON_TRAPDOOR, 'Iron Trapdoor'),
+
+  // Fence Gates
+  [ItemType.OAK_FENCE_GATE]: blockItem(BlockType.OAK_FENCE_GATE, 'Oak Fence Gate'),
+  [ItemType.SPRUCE_FENCE_GATE]: blockItem(BlockType.SPRUCE_FENCE_GATE, 'Spruce Fence Gate'),
+  [ItemType.BIRCH_FENCE_GATE]: blockItem(BlockType.BIRCH_FENCE_GATE, 'Birch Fence Gate'),
+
   // Special block items
   [ItemType.TORCH_ITEM]: { name: 'Torch', blockType: BlockType.TORCH, isPlaceable: true, category: ItemCategory.BLOCK, stackSize: 64 },
 
@@ -556,6 +609,13 @@ export const ItemDefinitions = {
   [ItemType.NETHER_BRICK_ITEM]: matItem('Nether Brick', 'nether_brick.png'),
   [ItemType.GLOWSTONE_DUST]: matItem('Glowstone Dust', 'glowstone_dust.png'),
   [ItemType.INK_SAC]: matItem('Ink Sac', 'ink_sac.png'),
+
+  // === Seeds & Farming ===
+  [ItemType.WHEAT_SEEDS]: { name: 'Wheat Seeds', isPlaceable: false, category: ItemCategory.MISC, texture: 'wheat_seeds.png', stackSize: 64, isSeed: true, cropBlock: 207 },
+  [ItemType.WHEAT]: matItem('Wheat', 'wheat.png'),
+  [ItemType.BEETROOT_SEEDS]: { name: 'Beetroot Seeds', isPlaceable: false, category: ItemCategory.MISC, texture: 'beetroot_seeds.png', stackSize: 64, isSeed: true, cropBlock: 223 },
+  [ItemType.PUMPKIN_SEEDS]: { name: 'Pumpkin Seeds', isPlaceable: false, category: ItemCategory.MISC, texture: 'pumpkin_seeds.png', stackSize: 64, isSeed: true },
+  [ItemType.MELON_SEEDS]: { name: 'Melon Seeds', isPlaceable: false, category: ItemCategory.MISC, texture: 'melon_seeds.png', stackSize: 64, isSeed: true },
 
   // === Misc ===
   [ItemType.BUCKET]: { name: 'Bucket', isPlaceable: false, category: ItemCategory.MISC, texture: 'bucket.png', stackSize: 16 },

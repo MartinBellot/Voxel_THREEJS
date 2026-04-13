@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import nipplejs from 'nipplejs';
 import { Physics } from './Physics.js';
-import { BlockType } from '../World/Block.js';
+import { BlockType, BlockDefinitions, BlockDrops, isCrop } from '../World/Block.js';
 import { Inventory } from '../Inventory.js';
 import { InventoryUI } from '../InventoryUI.js';
 import { ItemDefinitions, ItemType, ItemCategory } from '../Item.js';
@@ -10,7 +10,7 @@ import { DroppedItem } from '../World/DroppedItem.js';
 import { HeldItem } from './HeldItem.js';
 import { PlayerMesh } from './PlayerMesh.js';
 import { Bow } from '../Items/Bow.js';
-import { BlockDefinitions, BlockDrops } from '../World/Block.js';
+import { getEnchantmentBonus } from '../EnchantingSystem.js';
 
 export class Player {
   constructor(game) {
@@ -108,6 +108,15 @@ export class Player {
     this.isBreaking = false;
     this.breakOverlay = null;
     this.setupBreakOverlay();
+
+    // Drowning
+    this.air = 300; // 300 ticks = 15 seconds (like Minecraft)
+    this.maxAir = 300;
+    this.drownTimer = 0;
+    this.isDead = false;
+
+    // Setup death screen buttons
+    this.setupDeathScreen();
   }
 
   setGamemode(mode) {
@@ -149,8 +158,24 @@ export class Player {
 
       // Armor reduction
       const armorPoints = this.getArmorPoints();
-      const reducedDamage = Math.max(1, amount - armorPoints * 0.08 * amount);
-      this.setHealth(this.health - Math.floor(reducedDamage));
+      let reducedDamage = Math.max(1, amount - armorPoints * 0.08 * amount);
+
+      // Protection enchantment bonus from all armor pieces
+      let protectionBonus = 0;
+      for (let i = 36; i <= 39; i++) {
+        const armorItem = this.inventory.getItem(i);
+        if (armorItem && armorItem.enchantments) {
+          protectionBonus += getEnchantmentBonus(armorItem.enchantments, 'protection');
+        }
+      }
+      if (protectionBonus > 0) {
+        // Each protection point reduces damage by 4%, max 80%
+        const protReduction = Math.min(0.8, protectionBonus * 0.04);
+        reducedDamage *= (1 - protReduction);
+      }
+
+      // Thorns: damage attacker (handled by checking after being hit)
+      this.setHealth(this.health - Math.max(1, Math.floor(reducedDamage)));
 
       // Damage particles
       if (this.game.particleSystem) {
@@ -294,6 +319,17 @@ export class Player {
 
   // XP System
   addXP(amount) {
+    // Mending: redirect XP to repair equipped item with mending
+    const heldItem = this.inventory.getItem(this.inventory.selectedSlot);
+    if (heldItem && heldItem.enchantments && heldItem.enchantments.some(e => e.id === 'mending')) {
+      const itemDef = ItemDefinitions[heldItem.type];
+      if (itemDef && itemDef.durability && heldItem.durability < itemDef.durability) {
+        const repairAmount = amount * 2;
+        heldItem.durability = Math.min(itemDef.durability, (heldItem.durability || itemDef.durability) + repairAmount);
+        return; // XP consumed for repair
+      }
+    }
+
     this.xp += amount;
     while (this.xp >= this.xpForNextLevel) {
       this.xp -= this.xpForNextLevel;
@@ -330,6 +366,8 @@ export class Player {
   }
 
   onDeath() {
+    this.isDead = true;
+
     // Drop all items
     const pos = this.camera.position;
     for (let i = 0; i < 36; i++) {
@@ -341,6 +379,24 @@ export class Player {
       }
     }
 
+    // Calculate score
+    const score = this.level * 7 + this.xp;
+
+    // Show death screen
+    const deathScreen = document.getElementById('death-screen');
+    const deathScore = document.getElementById('death-score');
+    if (deathScreen) deathScreen.style.display = 'block';
+    if (deathScore) deathScore.textContent = `Score: ${score}`;
+
+    // Unlock cursor
+    if (this.controls.isLocked) {
+      this.controls.unlock();
+    }
+  }
+
+  respawn() {
+    this.isDead = false;
+
     // Reset state
     this.health = this.maxHealth;
     this.hunger = 20;
@@ -349,6 +405,8 @@ export class Player {
     this.xp = 0;
     this.level = 0;
     this.xpForNextLevel = 7;
+    this.air = this.maxAir;
+    this.drownTimer = 0;
 
     // Respawn at spawn point (bed) or default
     this.camera.position.copy(this.spawnPoint);
@@ -357,7 +415,109 @@ export class Player {
     this.updateHealthUI();
     this.updateHungerUI();
     this.updateXPUI();
+    this.updateAirUI();
     this.inventoryUI.updateHotbar();
+
+    // Hide death screen, re-lock controls
+    const deathScreen = document.getElementById('death-screen');
+    if (deathScreen) deathScreen.style.display = 'none';
+    this.controls.lock();
+  }
+
+  setupDeathScreen() {
+    const respawnBtn = document.getElementById('respawn-button');
+    const quitBtn = document.getElementById('quit-death-button');
+    if (respawnBtn) {
+      respawnBtn.addEventListener('click', () => this.respawn());
+    }
+    if (quitBtn) {
+      quitBtn.addEventListener('click', () => location.reload());
+    }
+  }
+
+  // Drowning
+  updateDrowning(delta) {
+    if (this.gamemode !== 'survival') return;
+
+    const pos = this.camera.position;
+    const headBlock = this.game.world.getBlock(
+      Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z)
+    );
+    const headInWater = (headBlock === BlockType.WATER || headBlock === BlockType.MAGIC_WATER);
+
+    if (headInWater) {
+      // Respiration enchantment: slows air loss
+      let airLossRate = 1;
+      const helmet = this.inventory.getItem(36);
+      if (helmet && helmet.enchantments) {
+        const respLevel = getEnchantmentBonus(helmet.enchantments, 'protection'); // Respiration uses same slot
+        // Check specifically for respiration
+        const respEnch = helmet.enchantments.find(e => e.id === 'respiration');
+        if (respEnch) {
+          // Respiration: chance to not consume air = level / (level+1)
+          if (Math.random() < respEnch.level / (respEnch.level + 1)) {
+            airLossRate = 0;
+          }
+        }
+      }
+
+      // Lose air
+      this.drownTimer += delta;
+      if (this.drownTimer >= 0.05) { // ~20 ticks/sec
+        this.drownTimer = 0;
+        this.air = Math.max(0, this.air - airLossRate);
+      }
+
+      // Drowning damage when out of air
+      if (this.air <= 0) {
+        this.drownTimer += delta;
+        if (this.drownTimer >= 0.0) {
+          // Reset and deal damage every second
+          this.air = 0; // Keep at 0
+          // Use a separate timer for damage
+        }
+      }
+      
+      this.updateAirUI();
+      document.getElementById('air-bar-container').style.display = 'flex';
+    } else {
+      // Recover air quickly when above water
+      if (this.air < this.maxAir) {
+        this.air = this.maxAir; // Instant recovery like Minecraft
+        this.updateAirUI();
+      }
+      document.getElementById('air-bar-container').style.display = 'none';
+      this.drownTimer = 0;
+    }
+
+    // Separate drowning damage timer
+    if (headInWater && this.air <= 0) {
+      if (!this._drownDamageTimer) this._drownDamageTimer = 0;
+      this._drownDamageTimer += delta;
+      if (this._drownDamageTimer >= 1.0) { // 1 damage per second
+        this._drownDamageTimer = 0;
+        this.takeDamage(2);
+      }
+    } else {
+      this._drownDamageTimer = 0;
+    }
+  }
+
+  updateAirUI() {
+    const container = document.getElementById('air-bar');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    const bubbles = 10;
+    for (let i = 0; i < bubbles; i++) {
+      const bubble = document.createElement('div');
+      bubble.className = 'air-bubble';
+      const airPerBubble = this.maxAir / bubbles; // 30 per bubble
+      if (this.air < (i + 1) * airPerBubble) {
+        bubble.classList.add('empty');
+      }
+      container.appendChild(bubble);
+    }
   }
 
   updateHealthUI() {
@@ -457,6 +617,12 @@ export class Player {
       }
     }
 
+    // Efficiency enchantment bonus: level^2 + 1
+    if (selectedItem && selectedItem.enchantments) {
+      const effBonus = getEnchantmentBonus(selectedItem.enchantments, 'mining_speed');
+      if (effBonus > 0) speedMult += effBonus;
+    }
+
     return blockDef.hardness * (canHarvest ? 1.5 : 5.0) / speedMult;
   }
 
@@ -538,8 +704,15 @@ export class Player {
   instantBreak(x, y, z, blockType) {
     this.game.world.setBlock(x, y, z, BlockType.AIR);
 
-    // Spawn break particles
+    // If breaking a door, also remove the other half
     const blockDef = BlockDefinitions[blockType];
+    if (blockDef && blockDef.isDoor) {
+      if (blockDef.isBottom) {
+        this.game.world.setBlock(x, y + 1, z, BlockType.AIR);
+      } else {
+        this.game.world.setBlock(x, y - 1, z, BlockType.AIR);
+      }
+    }
     if (blockDef && this.game.particleSystem) {
       this.game.particleSystem.spawnBlockBreak(x, y, z, blockDef.color || 0x888888);
     }
@@ -552,7 +725,16 @@ export class Player {
     // Determine drop
     if (blockType && blockType !== BlockType.AIR) {
       let dropType = blockType;
-      if (BlockDrops[blockType] !== undefined) {
+      const selectedItem = this.inventory.getItem(this.inventory.selectedSlot);
+      const hasSilkTouch = selectedItem && selectedItem.enchantments && 
+        selectedItem.enchantments.some(e => e.id === 'silk_touch');
+      const fortuneLevel = selectedItem && selectedItem.enchantments ? 
+        getEnchantmentBonus(selectedItem.enchantments, 'fortune') : 0;
+
+      if (hasSilkTouch && BlockDrops[blockType] !== undefined && BlockDrops[blockType] !== null) {
+        // Silk Touch: drop the block itself
+        dropType = blockType;
+      } else if (BlockDrops[blockType] !== undefined) {
         if (BlockDrops[blockType] === null) {
           dropType = null; // No drop (glass)
         } else {
@@ -561,20 +743,88 @@ export class Player {
         }
       }
       if (dropType !== null) {
-        const item = new DroppedItem(this.game, x, y, z, dropType);
-        this.game.droppedItems.push(item);
+        // Fortune: extra drops for ores
+        let dropCount = 1;
+        if (fortuneLevel > 0 && !hasSilkTouch) {
+          const isOre = [BlockType.COAL_ORE, BlockType.DIAMOND_ORE, BlockType.EMERALD_ORE, 
+            BlockType.LAPIS_ORE, BlockType.REDSTONE_ORE, BlockType.NETHER_QUARTZ_ORE,
+            BlockType.DEEPSLATE_COAL_ORE, BlockType.DEEPSLATE_DIAMOND_ORE, 
+            BlockType.DEEPSLATE_EMERALD_ORE, BlockType.DEEPSLATE_LAPIS_ORE,
+            BlockType.DEEPSLATE_REDSTONE_ORE].includes(blockType);
+          if (isOre) {
+            dropCount = 1 + Math.floor(Math.random() * (fortuneLevel + 1));
+          }
+        }
+        for (let d = 0; d < dropCount; d++) {
+          const item = new DroppedItem(this.game, x, y, z, dropType);
+          this.game.droppedItems.push(item);
+        }
+      }
+
+      // Tall grass drops wheat seeds (50% chance)
+      if (blockType === BlockType.TALL_GRASS && Math.random() < 0.5) {
+        const seedDrop = new DroppedItem(this.game, x, y, z, ItemType.WHEAT_SEEDS);
+        this.game.droppedItems.push(seedDrop);
+      }
+
+      // Mature wheat drops extra wheat seeds (1-3)
+      if (blockType === BlockType.WHEAT_STAGE_7) {
+        const seedCount = 1 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < seedCount; i++) {
+          const seedDrop = new DroppedItem(this.game, x, y, z, ItemType.WHEAT_SEEDS);
+          this.game.droppedItems.push(seedDrop);
+        }
+      }
+
+      // Mature potato drops 1-4 potatoes
+      if (blockType === BlockType.POTATO_STAGE_3) {
+        const extra = Math.floor(Math.random() * 3); // 0-2 extra
+        for (let i = 0; i < extra; i++) {
+          const potatoDrop = new DroppedItem(this.game, x, y, z, ItemType.POTATO);
+          this.game.droppedItems.push(potatoDrop);
+        }
+      }
+
+      // Mature carrot drops 1-4 carrots
+      if (blockType === BlockType.CARROT_STAGE_3) {
+        const extra = Math.floor(Math.random() * 3);
+        for (let i = 0; i < extra; i++) {
+          const carrotDrop = new DroppedItem(this.game, x, y, z, ItemType.CARROT);
+          this.game.droppedItems.push(carrotDrop);
+        }
+      }
+
+      // Unregister crop when broken
+      if (isCrop(blockType)) {
+        this.game.world.unregisterCrop(x, y, z);
       }
     }
 
-    // Tool durability
-    const selectedItem = this.inventory.getItem(this.inventory.selectedSlot);
-    if (selectedItem && this.gamemode === 'survival') {
-      const itemDef = ItemDefinitions[selectedItem.type];
+    // Tool durability (with Unbreaking enchantment)
+    const selectedItemForDur = this.inventory.getItem(this.inventory.selectedSlot);
+    if (selectedItemForDur && this.gamemode === 'survival') {
+      const itemDef = ItemDefinitions[selectedItemForDur.type];
       if (itemDef && itemDef.durability) {
-        selectedItem.durability = (selectedItem.durability || itemDef.durability) - 1;
-        if (selectedItem.durability <= 0) {
-          this.inventory.slots[this.inventory.selectedSlot] = null;
-          this.inventoryUI.updateHotbar();
+        // Unbreaking: chance to not consume durability
+        let shouldConsume = true;
+        if (selectedItemForDur.enchantments) {
+          const unbreakingLevel = getEnchantmentBonus(selectedItemForDur.enchantments, 'unbreaking');
+          if (unbreakingLevel > 0) {
+            // Chance to not consume: 100/(unbreakingLevel+1)%
+            shouldConsume = Math.random() < (1 / (unbreakingLevel + 1));
+          }
+        }
+        if (shouldConsume) {
+          selectedItemForDur.durability = (selectedItemForDur.durability || itemDef.durability) - 1;
+          if (selectedItemForDur.durability <= 0) {
+            this.inventory.slots[this.inventory.selectedSlot] = null;
+            this.inventoryUI.updateHotbar();
+          }
+        }
+
+        // Mending: convert XP to durability
+        if (selectedItemForDur.enchantments && selectedItemForDur.enchantments.some(e => e.id === 'mending')) {
+          this._hasMending = true;
         }
       }
     }
@@ -838,7 +1088,126 @@ export class Player {
                     return;
                   }
                 }
+
+                // Hoe: convert dirt/grass to farmland
+                if (held) {
+                  const heldDef = ItemDefinitions[held.type];
+                  if (heldDef && heldDef.toolType === 'HOE') {
+                    if (clickedBlock === BlockType.DIRT || clickedBlock === BlockType.GRASS) {
+                      this.game.world.setBlock(bx, by, bz, BlockType.FARMLAND);
+                      if (this.game.soundSystem) this.game.soundSystem.playBlockPlace('dirt');
+                      // Use durability
+                      if (held.durability !== undefined) {
+                        held.durability--;
+                        if (held.durability <= 0) {
+                          this.inventory.removeItem(this.inventory.selectedSlot, 1);
+                        }
+                      }
+                      this.inventoryUI.updateHotbar();
+                      return;
+                    }
+                  }
+
+                  // Bone meal on crops
+                  if (held.type === ItemType.BONE_MEAL && isCrop(clickedBlock)) {
+                    if (this.game.world.bonemealCrop(bx, by, bz)) {
+                      this.inventory.removeItem(this.inventory.selectedSlot, 1);
+                      this.inventoryUI.updateHotbar();
+                      // Green particles
+                      if (this.game.particleSystem) {
+                        this.game.particleSystem.spawnBlockBreak(bx, by, bz, 0x00FF00);
+                      }
+                    }
+                    return;
+                  }
+
+                  // Plant seeds on farmland
+                  const heldItemDef = ItemDefinitions[held.type];
+                  if (heldItemDef && heldItemDef.isSeed && heldItemDef.cropBlock) {
+                    // Check if clicking on farmland and air above
+                    if (clickedBlock === BlockType.FARMLAND) {
+                      const above = this.game.world.getBlock(bx, by + 1, bz);
+                      if (above === BlockType.AIR) {
+                        this.game.world.setBlock(bx, by + 1, bz, heldItemDef.cropBlock);
+                        this.game.world.registerCrop(bx, by + 1, bz, heldItemDef.cropBlock);
+                        this.inventory.removeItem(this.inventory.selectedSlot, 1);
+                        this.inventoryUI.updateHotbar();
+                        if (this.game.soundSystem) this.game.soundSystem.playBlockPlace('plant');
+                        return;
+                      }
+                    }
+                  }
+
+                  // Potato planting
+                  if (held.type === ItemType.POTATO && clickedBlock === BlockType.FARMLAND) {
+                    const above = this.game.world.getBlock(bx, by + 1, bz);
+                    if (above === BlockType.AIR) {
+                      this.game.world.setBlock(bx, by + 1, bz, BlockType.POTATO_STAGE_0);
+                      this.game.world.registerCrop(bx, by + 1, bz, BlockType.POTATO_STAGE_0);
+                      this.inventory.removeItem(this.inventory.selectedSlot, 1);
+                      this.inventoryUI.updateHotbar();
+                      if (this.game.soundSystem) this.game.soundSystem.playBlockPlace('plant');
+                      return;
+                    }
+                  }
+
+                  // Carrot planting
+                  if (held.type === ItemType.CARROT && clickedBlock === BlockType.FARMLAND) {
+                    const above = this.game.world.getBlock(bx, by + 1, bz);
+                    if (above === BlockType.AIR) {
+                      this.game.world.setBlock(bx, by + 1, bz, BlockType.CARROT_STAGE_0);
+                      this.game.world.registerCrop(bx, by + 1, bz, BlockType.CARROT_STAGE_0);
+                      this.inventory.removeItem(this.inventory.selectedSlot, 1);
+                      this.inventoryUI.updateHotbar();
+                      if (this.game.soundSystem) this.game.soundSystem.playBlockPlace('plant');
+                      return;
+                    }
+                  }
+
+                  // Beetroot seeds planting
+                  if (held.type === ItemType.BEETROOT_SEEDS && clickedBlock === BlockType.FARMLAND) {
+                    const above = this.game.world.getBlock(bx, by + 1, bz);
+                    if (above === BlockType.AIR) {
+                      this.game.world.setBlock(bx, by + 1, bz, BlockType.BEETROOT_STAGE_0);
+                      this.game.world.registerCrop(bx, by + 1, bz, BlockType.BEETROOT_STAGE_0);
+                      this.inventory.removeItem(this.inventory.selectedSlot, 1);
+                      this.inventoryUI.updateHotbar();
+                      if (this.game.soundSystem) this.game.soundSystem.playBlockPlace('plant');
+                      return;
+                    }
+                  }
+                }
+
+              // Door interaction: toggle open/close by removing/swapping
+              const clickedDef = BlockDefinitions[clickedBlock];
+              if (clickedDef && clickedDef.isDoor) {
+                // Remove both door halves (toggle = remove for now)
+                if (clickedDef.isBottom) {
+                  this.game.world.setBlock(bx, by, bz, BlockType.AIR);
+                  this.game.world.setBlock(bx, by + 1, bz, BlockType.AIR);
+                } else {
+                  this.game.world.setBlock(bx, by, bz, BlockType.AIR);
+                  this.game.world.setBlock(bx, by - 1, bz, BlockType.AIR);
+                }
+                if (this.game.soundSystem) this.game.soundSystem.playBlockPlace('wood');
+                return;
               }
+
+              // Trapdoor interaction: toggle by removing
+              if (clickedDef && clickedDef.isTrapdoor) {
+                this.game.world.setBlock(bx, by, bz, BlockType.AIR);
+                if (this.game.soundSystem) this.game.soundSystem.playBlockPlace('wood');
+                return;
+              }
+
+              // Fence gate interaction: toggle by removing
+              if (clickedDef && clickedDef.isFenceGate) {
+                this.game.world.setBlock(bx, by, bz, BlockType.AIR);
+                if (this.game.soundSystem) this.game.soundSystem.playBlockPlace('wood');
+                return;
+              }
+              }
+
               this.placeBlock();
           }
         }
@@ -1086,10 +1455,19 @@ export class Player {
         const itemDef = ItemDefinitions[this.inventory.getItem(this.inventory.selectedSlot)?.type];
         
         if (blockType && itemDef && itemDef.isPlaceable) {
-          this.game.world.setBlock(x, y, z, blockType);
+          // Door placement: need 2 blocks of space
+          const placedDef = BlockDefinitions[blockType];
+          if (placedDef && placedDef.isDoor && placedDef.isBottom) {
+            const above = this.game.world.getBlock(x, y + 1, z);
+            if (above !== BlockType.AIR) return; // No room for top half
+            // Find the corresponding top block (bottom + 1 in enum)
+            this.game.world.setBlock(x, y, z, blockType);
+            this.game.world.setBlock(x, y + 1, z, blockType + 1);
+          } else {
+            this.game.world.setBlock(x, y, z, blockType);
+          }
 
           // Place sound
-          const placedDef = BlockDefinitions[blockType];
           if (placedDef && this.game.soundSystem) {
             this.game.soundSystem.playBlockPlace(placedDef.material || 'stone');
           }
@@ -1132,6 +1510,9 @@ export class Player {
   }
 
   update(delta) {
+    // Don't update if dead
+    if (this.isDead) return;
+
     // Restore camera position for physics/logic
     if (this.isCameraOffset) {
         this.camera.position.copy(this.eyePosition);
@@ -1253,6 +1634,7 @@ export class Player {
       
       // Survival mechanics
       this.updateSurvival(delta);
+      this.updateDrowning(delta);
       
       // Network Update (20 times per second)
       const now = performance.now();

@@ -192,6 +192,79 @@ export const BlockType = {
   NOTE_BLOCK: 204,
   JUKEBOX: 205,
   DIRT_PATH: 206,
+
+  // Crops (207-215)
+  WHEAT_STAGE_0: 207,
+  WHEAT_STAGE_1: 208,
+  WHEAT_STAGE_2: 209,
+  WHEAT_STAGE_3: 210,
+  WHEAT_STAGE_4: 211,
+  WHEAT_STAGE_5: 212,
+  WHEAT_STAGE_6: 213,
+  WHEAT_STAGE_7: 214,
+  POTATO_STAGE_0: 215,
+  POTATO_STAGE_1: 216,
+  POTATO_STAGE_2: 217,
+  POTATO_STAGE_3: 218,
+  CARROT_STAGE_0: 219,
+  CARROT_STAGE_1: 220,
+  CARROT_STAGE_2: 221,
+  CARROT_STAGE_3: 222,
+  BEETROOT_STAGE_0: 223,
+  BEETROOT_STAGE_1: 224,
+  BEETROOT_STAGE_2: 225,
+  BEETROOT_STAGE_3: 226,
+
+  // Slabs (227-236)
+  OAK_SLAB: 227,
+  SPRUCE_SLAB: 228,
+  BIRCH_SLAB: 229,
+  JUNGLE_SLAB: 230,
+  ACACIA_SLAB: 231,
+  DARK_OAK_SLAB: 232,
+  STONE_SLAB: 233,
+  COBBLESTONE_SLAB: 234,
+  STONE_BRICK_SLAB: 235,
+  SANDSTONE_SLAB: 236,
+
+  // Stairs (237-246)
+  OAK_STAIRS: 237,
+  SPRUCE_STAIRS: 238,
+  BIRCH_STAIRS: 239,
+  JUNGLE_STAIRS: 240,
+  ACACIA_STAIRS: 241,
+  DARK_OAK_STAIRS: 242,
+  STONE_STAIRS: 243,
+  COBBLESTONE_STAIRS: 244,
+  STONE_BRICK_STAIRS: 245,
+  SANDSTONE_STAIRS: 246,
+
+  // Fences (247-253)
+  OAK_FENCE: 247,
+  SPRUCE_FENCE: 248,
+  BIRCH_FENCE: 249,
+  JUNGLE_FENCE: 250,
+  ACACIA_FENCE: 251,
+  DARK_OAK_FENCE: 252,
+  NETHER_BRICK_FENCE: 253,
+
+  // Doors (254-259)
+  OAK_DOOR_BOTTOM: 254,
+  OAK_DOOR_TOP: 255,
+  SPRUCE_DOOR_BOTTOM: 256,
+  SPRUCE_DOOR_TOP: 257,
+  IRON_DOOR_BOTTOM: 258,
+  IRON_DOOR_TOP: 259,
+
+  // Trapdoors (260-262)
+  OAK_TRAPDOOR: 260,
+  SPRUCE_TRAPDOOR: 261,
+  IRON_TRAPDOOR: 262,
+
+  // Fence Gates (263-265)
+  OAK_FENCE_GATE: 263,
+  SPRUCE_FENCE_GATE: 264,
+  BIRCH_FENCE_GATE: 265,
 };
 
 export const BlockModels = {
@@ -201,6 +274,10 @@ export const BlockModels = {
   CROSS: 'cross',
   GRASS: 'grass',
   SLAB: 'slab',
+  STAIR: 'stair',
+  FENCE: 'fence',
+  DOOR: 'door',
+  TRAPDOOR: 'trapdoor',
   LADDER: 'ladder',
 };
 
@@ -407,6 +484,85 @@ export const BlockDefinitions = {
   [BlockType.MAGIC_WATER]: { color: 0x00FFFF, visible: true, model: BlockModels.CUBE, transparent: true, opacity: 0.6, textures: { all: 'water_overlay.png' }, hardness: 100, liquid: true },
   [BlockType.CLOUD]: { color: 0xFFFFFF, visible: true, model: BlockModels.CUBE, transparent: true, opacity: 0.8, hardness: 0.0 },
   [BlockType.CARROT]: { color: 0xFFA500, visible: false },
+
+  // Crops - Wheat (8 stages)
+  [BlockType.WHEAT_STAGE_0]: { color: 0x2D5A1E, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 0, maxAge: 7 },
+  [BlockType.WHEAT_STAGE_1]: { color: 0x3A6B25, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 1, maxAge: 7 },
+  [BlockType.WHEAT_STAGE_2]: { color: 0x4A7B30, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 2, maxAge: 7 },
+  [BlockType.WHEAT_STAGE_3]: { color: 0x5A8C3B, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 3, maxAge: 7 },
+  [BlockType.WHEAT_STAGE_4]: { color: 0x6B9C46, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 4, maxAge: 7 },
+  [BlockType.WHEAT_STAGE_5]: { color: 0x8BAD50, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 5, maxAge: 7 },
+  [BlockType.WHEAT_STAGE_6]: { color: 0xB5A642, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 6, maxAge: 7 },
+  [BlockType.WHEAT_STAGE_7]: { color: 0xD4B837, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 7, maxAge: 7 },
+
+  // Crops - Potato (4 stages)
+  [BlockType.POTATO_STAGE_0]: { color: 0x2D5A1E, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 0, maxAge: 3 },
+  [BlockType.POTATO_STAGE_1]: { color: 0x4A7B30, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 1, maxAge: 3 },
+  [BlockType.POTATO_STAGE_2]: { color: 0x6B9C46, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 2, maxAge: 3 },
+  [BlockType.POTATO_STAGE_3]: { color: 0x8BAD50, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 3, maxAge: 3 },
+
+  // Crops - Carrot (4 stages)
+  [BlockType.CARROT_STAGE_0]: { color: 0x2D5A1E, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 0, maxAge: 3 },
+  [BlockType.CARROT_STAGE_1]: { color: 0x4A7B30, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 1, maxAge: 3 },
+  [BlockType.CARROT_STAGE_2]: { color: 0x6B9C46, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 2, maxAge: 3 },
+  [BlockType.CARROT_STAGE_3]: { color: 0xFFA040, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 3, maxAge: 3 },
+
+  // Crops - Beetroot (4 stages)
+  [BlockType.BEETROOT_STAGE_0]: { color: 0x2D5A1E, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 0, maxAge: 3 },
+  [BlockType.BEETROOT_STAGE_1]: { color: 0x3A6B25, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 1, maxAge: 3 },
+  [BlockType.BEETROOT_STAGE_2]: { color: 0x5A3040, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 2, maxAge: 3 },
+  [BlockType.BEETROOT_STAGE_3]: { color: 0x8B1A1A, visible: true, model: BlockModels.CROSS, transparent: true, hardness: 0.0, material: BlockMaterial.PLANT, isCrop: true, cropAge: 3, maxAge: 3 },
+
+  // Slabs
+  [BlockType.OAK_SLAB]: { color: 0xBC9862, visible: true, model: BlockModels.SLAB, textures: { all: 'oak_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.SPRUCE_SLAB]: { color: 0x6B5032, visible: true, model: BlockModels.SLAB, textures: { all: 'spruce_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.BIRCH_SLAB]: { color: 0xD7CB8D, visible: true, model: BlockModels.SLAB, textures: { all: 'birch_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.JUNGLE_SLAB]: { color: 0xA0784A, visible: true, model: BlockModels.SLAB, textures: { all: 'jungle_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.ACACIA_SLAB]: { color: 0xAD5D2E, visible: true, model: BlockModels.SLAB, textures: { all: 'acacia_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.DARK_OAK_SLAB]: { color: 0x3E2912, visible: true, model: BlockModels.SLAB, textures: { all: 'dark_oak_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.STONE_SLAB]: { color: 0xA5A5A5, visible: true, model: BlockModels.SLAB, textures: { all: 'smooth_stone.png' }, hardness: 2.0, material: BlockMaterial.STONE, miningLevel: 1, transparent: true },
+  [BlockType.COBBLESTONE_SLAB]: { color: 0x787878, visible: true, model: BlockModels.SLAB, textures: { all: 'cobblestone.png' }, hardness: 2.0, material: BlockMaterial.STONE, miningLevel: 1, transparent: true },
+  [BlockType.STONE_BRICK_SLAB]: { color: 0x828282, visible: true, model: BlockModels.SLAB, textures: { all: 'stone_bricks.png' }, hardness: 1.5, material: BlockMaterial.STONE, miningLevel: 1, transparent: true },
+  [BlockType.SANDSTONE_SLAB]: { color: 0xDDD39B, visible: true, model: BlockModels.SLAB, textures: { top: 'sandstone_top.png', side: 'sandstone.png', bottom: 'sandstone_bottom.png' }, hardness: 2.0, material: BlockMaterial.STONE, miningLevel: 1, transparent: true },
+
+  // Stairs
+  [BlockType.OAK_STAIRS]: { color: 0xBC9862, visible: true, model: BlockModels.STAIR, textures: { all: 'oak_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.SPRUCE_STAIRS]: { color: 0x6B5032, visible: true, model: BlockModels.STAIR, textures: { all: 'spruce_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.BIRCH_STAIRS]: { color: 0xD7CB8D, visible: true, model: BlockModels.STAIR, textures: { all: 'birch_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.JUNGLE_STAIRS]: { color: 0xA0784A, visible: true, model: BlockModels.STAIR, textures: { all: 'jungle_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.ACACIA_STAIRS]: { color: 0xAD5D2E, visible: true, model: BlockModels.STAIR, textures: { all: 'acacia_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.DARK_OAK_STAIRS]: { color: 0x3E2912, visible: true, model: BlockModels.STAIR, textures: { all: 'dark_oak_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.STONE_STAIRS]: { color: 0xA5A5A5, visible: true, model: BlockModels.STAIR, textures: { all: 'smooth_stone.png' }, hardness: 2.0, material: BlockMaterial.STONE, miningLevel: 1, transparent: true },
+  [BlockType.COBBLESTONE_STAIRS]: { color: 0x787878, visible: true, model: BlockModels.STAIR, textures: { all: 'cobblestone.png' }, hardness: 2.0, material: BlockMaterial.STONE, miningLevel: 1, transparent: true },
+  [BlockType.STONE_BRICK_STAIRS]: { color: 0x828282, visible: true, model: BlockModels.STAIR, textures: { all: 'stone_bricks.png' }, hardness: 1.5, material: BlockMaterial.STONE, miningLevel: 1, transparent: true },
+  [BlockType.SANDSTONE_STAIRS]: { color: 0xDDD39B, visible: true, model: BlockModels.STAIR, textures: { all: 'sandstone.png' }, hardness: 2.0, material: BlockMaterial.STONE, miningLevel: 1, transparent: true },
+
+  // Fences
+  [BlockType.OAK_FENCE]: { color: 0xBC9862, visible: true, model: BlockModels.FENCE, textures: { all: 'oak_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.SPRUCE_FENCE]: { color: 0x6B5032, visible: true, model: BlockModels.FENCE, textures: { all: 'spruce_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.BIRCH_FENCE]: { color: 0xD7CB8D, visible: true, model: BlockModels.FENCE, textures: { all: 'birch_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.JUNGLE_FENCE]: { color: 0xA0784A, visible: true, model: BlockModels.FENCE, textures: { all: 'jungle_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.ACACIA_FENCE]: { color: 0xAD5D2E, visible: true, model: BlockModels.FENCE, textures: { all: 'acacia_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.DARK_OAK_FENCE]: { color: 0x3E2912, visible: true, model: BlockModels.FENCE, textures: { all: 'dark_oak_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
+  [BlockType.NETHER_BRICK_FENCE]: { color: 0x2C1016, visible: true, model: BlockModels.FENCE, textures: { all: 'nether_bricks.png' }, hardness: 2.0, material: BlockMaterial.STONE, miningLevel: 1, transparent: true },
+
+  // Doors
+  [BlockType.OAK_DOOR_BOTTOM]: { color: 0xBC9862, visible: true, model: BlockModels.DOOR, textures: { all: 'oak_planks.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isDoor: true, isBottom: true },
+  [BlockType.OAK_DOOR_TOP]: { color: 0xBC9862, visible: true, model: BlockModels.DOOR, textures: { all: 'oak_planks.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isDoor: true, isBottom: false },
+  [BlockType.SPRUCE_DOOR_BOTTOM]: { color: 0x6B5032, visible: true, model: BlockModels.DOOR, textures: { all: 'spruce_planks.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isDoor: true, isBottom: true },
+  [BlockType.SPRUCE_DOOR_TOP]: { color: 0x6B5032, visible: true, model: BlockModels.DOOR, textures: { all: 'spruce_planks.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isDoor: true, isBottom: false },
+  [BlockType.IRON_DOOR_BOTTOM]: { color: 0xC8C8C8, visible: true, model: BlockModels.DOOR, textures: { all: 'iron_block.png' }, hardness: 5.0, material: BlockMaterial.METAL, miningLevel: 1, transparent: true, interactive: true, isDoor: true, isBottom: true },
+  [BlockType.IRON_DOOR_TOP]: { color: 0xC8C8C8, visible: true, model: BlockModels.DOOR, textures: { all: 'iron_block.png' }, hardness: 5.0, material: BlockMaterial.METAL, miningLevel: 1, transparent: true, interactive: true, isDoor: true, isBottom: false },
+
+  // Trapdoors
+  [BlockType.OAK_TRAPDOOR]: { color: 0xBC9862, visible: true, model: BlockModels.TRAPDOOR, textures: { all: 'oak_planks.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isTrapdoor: true },
+  [BlockType.SPRUCE_TRAPDOOR]: { color: 0x6B5032, visible: true, model: BlockModels.TRAPDOOR, textures: { all: 'spruce_planks.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isTrapdoor: true },
+  [BlockType.IRON_TRAPDOOR]: { color: 0xC8C8C8, visible: true, model: BlockModels.TRAPDOOR, textures: { all: 'iron_block.png' }, hardness: 5.0, material: BlockMaterial.METAL, miningLevel: 1, transparent: true, interactive: true, isTrapdoor: true },
+
+  // Fence Gates
+  [BlockType.OAK_FENCE_GATE]: { color: 0xBC9862, visible: true, model: BlockModels.FENCE, textures: { all: 'oak_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isFenceGate: true },
+  [BlockType.SPRUCE_FENCE_GATE]: { color: 0x6B5032, visible: true, model: BlockModels.FENCE, textures: { all: 'spruce_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isFenceGate: true },
+  [BlockType.BIRCH_FENCE_GATE]: { color: 0xD7CB8D, visible: true, model: BlockModels.FENCE, textures: { all: 'birch_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isFenceGate: true },
 };
 
 // Block drop overrides
@@ -431,11 +587,38 @@ export const BlockDrops = {
   [BlockType.COPPER_ORE]: 'RAW_COPPER',
   [BlockType.DEEPSLATE_COPPER_ORE]: 'RAW_COPPER',
   [BlockType.GLASS]: null, // drops nothing
+  // Crops drop seeds when not fully grown, products when mature
+  [BlockType.WHEAT_STAGE_0]: 'WHEAT_SEEDS',
+  [BlockType.WHEAT_STAGE_1]: 'WHEAT_SEEDS',
+  [BlockType.WHEAT_STAGE_2]: 'WHEAT_SEEDS',
+  [BlockType.WHEAT_STAGE_3]: 'WHEAT_SEEDS',
+  [BlockType.WHEAT_STAGE_4]: 'WHEAT_SEEDS',
+  [BlockType.WHEAT_STAGE_5]: 'WHEAT_SEEDS',
+  [BlockType.WHEAT_STAGE_6]: 'WHEAT_SEEDS',
+  [BlockType.WHEAT_STAGE_7]: 'WHEAT', // Mature: drops wheat + seeds handled in code
+  [BlockType.POTATO_STAGE_0]: null,
+  [BlockType.POTATO_STAGE_1]: null,
+  [BlockType.POTATO_STAGE_2]: null,
+  [BlockType.POTATO_STAGE_3]: 'POTATO',
+  [BlockType.CARROT_STAGE_0]: null,
+  [BlockType.CARROT_STAGE_1]: null,
+  [BlockType.CARROT_STAGE_2]: null,
+  [BlockType.CARROT_STAGE_3]: 'CARROT',
+  [BlockType.BEETROOT_STAGE_0]: null,
+  [BlockType.BEETROOT_STAGE_1]: null,
+  [BlockType.BEETROOT_STAGE_2]: null,
+  [BlockType.BEETROOT_STAGE_3]: 'BEETROOT',
 };
+
+export function isCrop(blockType) {
+  const def = BlockDefinitions[blockType];
+  return def ? !!def.isCrop : false;
+}
 
 export function isTransparent(blockType) {
   if (blockType === BlockType.AIR || blockType === BlockType.WATER || blockType === BlockType.MAGIC_WATER) return true;
   if (blockType === BlockType.TALL_GRASS || blockType === BlockType.TORCH || blockType === BlockType.LADDER) return true;
+  if (isCrop(blockType)) return true;
   const def = BlockDefinitions[blockType];
   return def ? !!def.transparent : true;
 }
@@ -448,5 +631,6 @@ export function isSolid(blockType) {
   if (blockType === BlockType.AIR) return false;
   if (isLiquid(blockType)) return false;
   if (blockType === BlockType.TALL_GRASS || blockType === BlockType.TORCH || blockType === BlockType.LADDER) return false;
+  if (isCrop(blockType)) return false;
   return true;
 }

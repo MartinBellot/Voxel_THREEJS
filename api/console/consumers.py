@@ -15,6 +15,17 @@ class ConsoleConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         data = json.loads(text_data)
+        msg_type = data.get("type", "command")
+
+        if msg_type == "check_op":
+            username = data.get("username", "")
+            is_op = await self.is_operator(username)
+            await self.send(text_data=json.dumps({
+                "type": "op_status",
+                "is_op": is_op
+            }))
+            return
+
         command_text = data.get("command")
         username = data.get("username")
 

@@ -21,6 +21,13 @@ export class Arrow {
         this.isDead = false;
         this.stuck = false;
         this.lifeTime = 0;
+        
+        // Enchantment bonuses (set by Bow.fire())
+        this.damageBonus = 0;
+        this.punchBonus = 0;
+        this.isFlaming = false;
+        this.baseDamage = 6; // Minecraft arrow base damage at full charge
+        this.type = 'arrow';
     }
 
     createBody() {
@@ -75,6 +82,40 @@ export class Arrow {
         // Move
         const moveStep = this.velocity.clone().multiplyScalar(delta);
         const nextPos = this.position.clone().add(moveStep);
+        
+        // Entity collision detection
+        for (const entity of this.game.entities) {
+            if (entity === this) continue;
+            if (entity.type === 'arrow' || entity.type === 'skeleton_arrow') continue;
+            if (entity.health <= 0) continue;
+            
+            const dx = entity.position.x - this.position.x;
+            const dy = (entity.position.y + (entity.height || 1) / 2) - this.position.y;
+            const dz = entity.position.z - this.position.z;
+            const distSq = dx * dx + dy * dy + dz * dz;
+            const hitRadius = ((entity.width || 0.6) / 2 + 0.2);
+            
+            if (distSq < hitRadius * hitRadius) {
+                const damage = this.baseDamage + this.damageBonus;
+                entity.takeDamage(damage);
+                
+                // Punch knockback
+                if (this.punchBonus > 0) {
+                    const kb = new THREE.Vector3(dx, 0, dz).normalize();
+                    entity.velocity.x += kb.x * this.punchBonus * 3;
+                    entity.velocity.z += kb.z * this.punchBonus * 3;
+                    entity.velocity.y += 2;
+                }
+                
+                // Flame: set entity on fire
+                if (this.isFlaming && entity.fireTimer !== undefined) {
+                    entity.fireTimer = 5;
+                }
+                
+                this.remove();
+                return;
+            }
+        }
         
         // Collision detection (Raycast)
         const direction = moveStep.clone().normalize();

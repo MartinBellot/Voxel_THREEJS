@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { BlockType, BlockDefinitions, isLiquid, isSolid } from '../World/Block.js';
+import { getEnchantmentBonus } from '../EnchantingSystem.js';
 
 export class Physics {
   constructor(player) {
@@ -154,8 +155,16 @@ export class Physics {
         if (this.fallStartY !== null && this.player.gamemode === 'survival') {
           const fallDistance = this.fallStartY - position.y;
           if (fallDistance > 3) {
-            const damage = Math.floor(fallDistance - 3);
-            this.player.takeDamage(damage);
+            let damage = Math.floor(fallDistance - 3);
+            // Feather Falling enchantment: reduce fall damage
+            const boots = this.player.inventory.getItem(39);
+            if (boots && boots.enchantments) {
+              const ffLevel = getEnchantmentBonus(boots.enchantments, 'feather_falling');
+              damage = Math.max(0, damage - ffLevel * 2);
+            }
+            if (damage > 0) {
+              this.player.takeDamage(damage);
+            }
           }
         }
         this.fallStartY = null;

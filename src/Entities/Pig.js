@@ -30,6 +30,11 @@ export class Pig {
         this.depth = 0.6 * 1.5;
         this.height = 0.9 * 1.5;
         this.onGround = false;
+
+        // Combat
+        this.health = 10;
+        this.maxHealth = 10;
+        this.type = 'pig';
     }
 
     createBody() {
@@ -384,6 +389,25 @@ export class Pig {
             // Reset legs
             this.legs.forEach(leg => leg.rotation.x = 0);
         }
+    }
+
+    takeDamage(amount) {
+        this.health -= amount;
+        this.mesh.children.forEach(c => {
+            if (c.material) c.material.emissive = new THREE.Color(0.5, 0, 0);
+        });
+        setTimeout(() => {
+            this.mesh.children.forEach(c => {
+                if (c.material) c.material.emissive = new THREE.Color(0, 0, 0);
+            });
+        }, 200);
+    }
+
+    getDrops() {
+        const drops = [];
+        const count = 1 + Math.floor(Math.random() * 3);
+        drops.push({ type: ItemType.RAW_PORKCHOP, count });
+        return drops;
     }
 
     dispose() {

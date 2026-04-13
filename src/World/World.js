@@ -44,6 +44,11 @@ export class World {
     this._biomeCacheSize = 0;
     this._maxBiomeCacheSize = 10000;
 
+    // Crop growth
+    this.cropTimer = 0;
+    this.cropTickRate = 5.0; // Check crops every 5 seconds (random tick equivalent)
+    this.crops = new Map(); // "x,y,z" -> blockType
+
     // Génération initiale synchrone
     this.generateInitialChunks();
   }
@@ -483,6 +488,9 @@ export class World {
 
     // Process liquid flow
     this.updateLiquids(delta);
+
+    // Process crop growth
+    this.updateCrops(delta);
   }
 
   generateChunk(chunkX, chunkZ) {
@@ -615,4 +623,89 @@ export class World {
         }
       }
     }  }
+
+  registerCrop(x, y, z, blockType) {
+    this.crops.set(`${x},${y},${z}`, blockType);
+  }
+
+  unregisterCrop(x, y, z) {
+    this.crops.delete(`${x},${y},${z}`);
+  }
+
+  updateCrops(delta) {
+    this.cropTimer += delta;
+    if (this.cropTimer < this.cropTickRate) return;
+    this.cropTimer = 0;
+
+    // Random ticking: ~1/3 chance per crop per tick (like Minecraft's random tick)
+    const toGrow = [];
+    for (const [key, blockType] of this.crops) {
+      if (Math.random() < 0.15) { // ~15% chance per 5s tick
+        toGrow.push(key);
+      }
+    }
+
+    for (const key of toGrow) {
+      const [x, y, z] = key.split(',').map(Number);
+      const current = this.getBlock(x, y, z);
+      if (!current) continue;
+
+      // Check the block below is farmland
+      const below = this.getBlock(x, y - 1, z);
+      if (below !== BlockType.FARMLAND) {
+        // Crop destroyed if farmland removed
+        this.setBlock(x, y, z, BlockType.AIR);
+        this.unregisterCrop(x, y, z);
+        continue;
+      }
+
+      // Advance crop stage
+      const nextBlock = this.getNextCropStage(current);
+      if (nextBlock !== null) {
+        this.setBlock(x, y, z, nextBlock);
+        this.crops.set(key, nextBlock);
+      }
+    }
+  }
+
+  getNextCropStage(blockType) {
+    // Wheat: 207-214 (stages 0-7)
+    if (blockType >= BlockType.WHEAT_STAGE_0 && blockType < BlockType.WHEAT_STAGE_7) {
+      return blockType + 1;
+    }
+    // Potato: 215-218 (stages 0-3)
+    if (blockType >= BlockType.POTATO_STAGE_0 && blockType < BlockType.POTATO_STAGE_3) {
+      return blockType + 1;
+    }
+    // Carrot: 219-222 (stages 0-3)
+    if (blockType >= BlockType.CARROT_STAGE_0 && blockType < BlockType.CARROT_STAGE_3) {
+      return blockType + 1;
+    }
+    // Beetroot: 223-226 (stages 0-3)
+    if (blockType >= BlockType.BEETROOT_STAGE_0 && blockType < BlockType.BEETROOT_STAGE_3) {
+      return blockType + 1;
+    }
+    return null; // Fully grown
+  }
+
+  bonemealCrop(x, y, z) {
+    const current = this.getBlock(x, y, z);
+    if (!current) return false;
+
+    const next = this.getNextCropStage(current);
+    if (next !== null) {
+      // Advance 2-5 stages (like Minecraft)
+      let block = current;
+      const advances = 2 + Math.floor(Math.random() * 4);
+      for (let i = 0; i < advances; i++) {
+        const n = this.getNextCropStage(block);
+        if (n === null) break;
+        block = n;
+      }
+      this.setBlock(x, y, z, block);
+      this.crops.set(`${x},${y},${z}`, block);
+      return true;
+    }
+    return false;
+  }
 }
