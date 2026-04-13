@@ -993,6 +993,335 @@ console.log('\nParticle textures:');
   savePNG(crit, path.join(ASSETS, 'item', 'critical_hit.png'));
 }
 
+// Torch texture (16x16 - side view like Minecraft)
+console.log('\nTorch texture:');
+{
+  const png = createPNG(16, 16);
+  fill(png, 0, 0, 0, 0); // Transparent background
+
+  // Torch stick (brown wood) - centered 2px wide, from y=6 to y=15 (bottom)
+  for (let y = 6; y < 16; y++) {
+    for (let x = 7; x <= 8; x++) {
+      const r = vary(120, 15, x, y, 90);
+      const g = vary(85, 12, x, y, 91);
+      const b = vary(50, 10, x, y, 92);
+      setPixel(png, x, y, r, g, b);
+    }
+  }
+
+  // Torch top (flame/lit part) - from y=3 to y=6
+  // Yellow-orange core
+  for (let y = 3; y < 6; y++) {
+    for (let x = 7; x <= 8; x++) {
+      if (y === 3) {
+        setPixel(png, x, y, 255, 255, 180); // Bright yellow top
+      } else if (y === 4) {
+        setPixel(png, x, y, 255, 200, 80); // Orange-yellow
+      } else {
+        setPixel(png, x, y, 200, 150, 50); // Darker base of flame
+      }
+    }
+  }
+
+  // Top face texture (2x2 pixels at y=2, centered)
+  setPixel(png, 7, 2, 180, 140, 40);
+  setPixel(png, 8, 2, 180, 140, 40);
+
+  savePNG(png, path.join(ASSETS, 'block', 'torch.png'));
+}
+
 // Crosshair already exists as CSS
+
+// === DOOR TEXTURES ===
+console.log('\nDoor textures:');
+
+function generateDoorBottom(name, baseR, baseG, baseB, isIron = false) {
+  const png = createPNG(16, 16);
+  for (let y = 0; y < 16; y++) {
+    for (let x = 0; x < 16; x++) {
+      let r = vary(baseR, 12, x, y, 200);
+      let g = vary(baseG, 12, x, y, 201);
+      let b = vary(baseB, 12, x, y, 202);
+      // Plank lines (horizontal)
+      if (!isIron && y % 4 === 0) { r = Math.max(0, r - 25); g = Math.max(0, g - 25); b = Math.max(0, b - 25); }
+      // Vertical center line
+      if (x === 7 || x === 8) { r = Math.max(0, r - 15); g = Math.max(0, g - 15); b = Math.max(0, b - 15); }
+      // Frame edges
+      if (x === 0 || x === 15) { r = Math.max(0, r - 30); g = Math.max(0, g - 30); b = Math.max(0, b - 30); }
+      if (y === 15) { r = Math.max(0, r - 30); g = Math.max(0, g - 30); b = Math.max(0, b - 30); }
+      setPixel(png, x, y, r, g, b);
+    }
+  }
+  // Door handle (right side)
+  for (let hy = 6; hy <= 8; hy++) {
+    setPixel(png, 12, hy, isIron ? 180 : 100, isIron ? 180 : 80, isIron ? 180 : 40);
+    setPixel(png, 13, hy, isIron ? 200 : 120, isIron ? 200 : 95, isIron ? 200 : 55);
+  }
+  if (isIron) {
+    // Metal rivets
+    setPixel(png, 3, 3, 160, 160, 170);
+    setPixel(png, 12, 3, 160, 160, 170);
+    setPixel(png, 3, 12, 160, 160, 170);
+    setPixel(png, 12, 12, 160, 160, 170);
+  }
+  savePNG(png, path.join(ASSETS, 'block', name));
+}
+
+function generateDoorTop(name, baseR, baseG, baseB, isIron = false) {
+  const png = createPNG(16, 16);
+  for (let y = 0; y < 16; y++) {
+    for (let x = 0; x < 16; x++) {
+      let r = vary(baseR, 12, x, y, 203);
+      let g = vary(baseG, 12, x, y, 204);
+      let b = vary(baseB, 12, x, y, 205);
+      // Frame edges
+      if (x === 0 || x === 15) { r = Math.max(0, r - 30); g = Math.max(0, g - 30); b = Math.max(0, b - 30); }
+      if (y === 0) { r = Math.max(0, r - 30); g = Math.max(0, g - 30); b = Math.max(0, b - 30); }
+      // Plank lines
+      if (!isIron && y % 4 === 0) { r = Math.max(0, r - 25); g = Math.max(0, g - 25); b = Math.max(0, b - 25); }
+      // Vertical center line
+      if (x === 7 || x === 8) { r = Math.max(0, r - 15); g = Math.max(0, g - 15); b = Math.max(0, b - 15); }
+      setPixel(png, x, y, r, g, b);
+    }
+  }
+  // Window pane (top portion)
+  for (let wy = 2; wy <= 7; wy++) {
+    for (let wx = 3; wx <= 6; wx++) {
+      if (isIron) {
+        setPixel(png, wx, wy, 180, 210, 230, 160);
+      } else {
+        setPixel(png, wx, wy, 160, 200, 220, 140);
+      }
+    }
+    for (let wx = 9; wx <= 12; wx++) {
+      if (isIron) {
+        setPixel(png, wx, wy, 180, 210, 230, 160);
+      } else {
+        setPixel(png, wx, wy, 160, 200, 220, 140);
+      }
+    }
+  }
+  // Window frame bars
+  for (let wy = 2; wy <= 7; wy++) {
+    setPixel(png, 2, wy, Math.max(0, baseR - 40), Math.max(0, baseG - 40), Math.max(0, baseB - 40));
+    setPixel(png, 7, wy, Math.max(0, baseR - 40), Math.max(0, baseG - 40), Math.max(0, baseB - 40));
+    setPixel(png, 8, wy, Math.max(0, baseR - 40), Math.max(0, baseG - 40), Math.max(0, baseB - 40));
+    setPixel(png, 13, wy, Math.max(0, baseR - 40), Math.max(0, baseG - 40), Math.max(0, baseB - 40));
+  }
+  for (let wx = 2; wx <= 13; wx++) {
+    setPixel(png, wx, 1, Math.max(0, baseR - 40), Math.max(0, baseG - 40), Math.max(0, baseB - 40));
+    setPixel(png, wx, 8, Math.max(0, baseR - 40), Math.max(0, baseG - 40), Math.max(0, baseB - 40));
+  }
+  if (isIron) {
+    setPixel(png, 3, 11, 160, 160, 170);
+    setPixel(png, 12, 11, 160, 160, 170);
+  }
+  savePNG(png, path.join(ASSETS, 'block', name));
+}
+
+// Oak door (warm brown)
+generateDoorBottom('oak_door_bottom.png', 190, 150, 95);
+generateDoorTop('oak_door_top.png', 190, 150, 95);
+
+// Spruce door (dark brown)
+generateDoorBottom('spruce_door_bottom.png', 107, 80, 50);
+generateDoorTop('spruce_door_top.png', 107, 80, 50);
+
+// Iron door (metallic gray)
+generateDoorBottom('iron_door_bottom.png', 200, 200, 200, true);
+generateDoorTop('iron_door_top.png', 200, 200, 200, true);
+
+// Door item icons (for inventory)
+function generateDoorItemIcon(name, baseR, baseG, baseB, isIron = false) {
+  const png = createPNG(16, 16);
+  fill(png, 0, 0, 0, 0); // Transparent background
+  // Door shape: tall rectangle (5 wide x 14 tall)
+  for (let y = 1; y < 15; y++) {
+    for (let x = 5; x < 11; x++) {
+      let r = vary(baseR, 10, x, y, 210);
+      let g = vary(baseG, 10, x, y, 211);
+      let b = vary(baseB, 10, x, y, 212);
+      // Frame
+      if (x === 5 || x === 10) { r = Math.max(0, r - 35); g = Math.max(0, g - 35); b = Math.max(0, b - 35); }
+      if (y === 1 || y === 14) { r = Math.max(0, r - 35); g = Math.max(0, g - 35); b = Math.max(0, b - 35); }
+      // Plank lines
+      if (!isIron && y % 4 === 0) { r = Math.max(0, r - 20); g = Math.max(0, g - 20); b = Math.max(0, b - 20); }
+      setPixel(png, x, y, r, g, b);
+    }
+  }
+  // Window panes (top half)
+  for (let wy = 3; wy <= 5; wy++) {
+    for (let wx = 6; wx <= 9; wx++) {
+      setPixel(png, wx, wy, 160, 200, 220, isIron ? 160 : 140);
+    }
+  }
+  // Handle
+  setPixel(png, 9, 9, isIron ? 180 : 100, isIron ? 180 : 80, isIron ? 180 : 40);
+  setPixel(png, 9, 10, isIron ? 200 : 120, isIron ? 200 : 95, isIron ? 200 : 55);
+  if (isIron) {
+    setPixel(png, 6, 3, 160, 160, 170);
+    setPixel(png, 9, 3, 160, 160, 170);
+    setPixel(png, 6, 12, 160, 160, 170);
+    setPixel(png, 9, 12, 160, 160, 170);
+  }
+  savePNG(png, path.join(ASSETS, 'item', name));
+}
+
+generateDoorItemIcon('oak_door.png', 190, 150, 95);
+generateDoorItemIcon('spruce_door.png', 107, 80, 50);
+generateDoorItemIcon('iron_door.png', 200, 200, 200, true);
+
+// === ELYTRA ===
+{
+  const png = createPNG(16, 16);
+  fill(png, 0, 0, 0, 0);
+
+  // Elytra shape: two wing-like shapes spreading from center
+  // Minecraft elytra icon is gray/purple with a torn wing membrane look
+
+  // Left wing
+  const leftWing = [
+    [3,2],[4,2],[5,2],
+    [2,3],[3,3],[4,3],[5,3],[6,3],
+    [1,4],[2,4],[3,4],[4,4],[5,4],[6,4],
+    [1,5],[2,5],[3,5],[4,5],[5,5],[6,5],
+    [1,6],[2,6],[3,6],[4,6],[5,6],[6,6],
+    [2,7],[3,7],[4,7],[5,7],[6,7],
+    [2,8],[3,8],[4,8],[5,8],[6,8],
+    [3,9],[4,9],[5,9],[6,9],
+    [4,10],[5,10],[6,10],
+    [5,11],[6,11],
+    [6,12],
+  ];
+
+  // Right wing (mirrored)
+  const rightWing = leftWing.map(([x, y]) => [15 - x, y]);
+
+  // Wing base color: grayish-purple like Minecraft elytra
+  const baseR = 155, baseG = 140, baseB = 160;
+  // Darker edge/vein color
+  const darkR = 100, darkG = 85, darkB = 110;
+  // Lighter highlight
+  const lightR = 180, lightG = 170, lightB = 190;
+
+  for (const [x, y] of leftWing) {
+    // Edge detection: darker on outer edges
+    const isEdge = !leftWing.some(([ex, ey]) => ex === x - 1 && ey === y) ||
+                   !leftWing.some(([ex, ey]) => ex === x && ey === y - 1);
+    // Vein lines for membrane look
+    const isVein = (x + y) % 3 === 0;
+
+    let r, g, b;
+    if (isEdge) {
+      r = vary(darkR, 12, x, y, 500);
+      g = vary(darkG, 12, x, y, 501);
+      b = vary(darkB, 12, x, y, 502);
+    } else if (isVein) {
+      r = vary(darkR + 15, 10, x, y, 503);
+      g = vary(darkG + 15, 10, x, y, 504);
+      b = vary(darkB + 15, 10, x, y, 505);
+    } else {
+      r = vary(baseR, 15, x, y, 506);
+      g = vary(baseG, 15, x, y, 507);
+      b = vary(baseB, 15, x, y, 508);
+    }
+    // Top highlight gradient
+    if (y <= 4) {
+      r = Math.min(255, r + 15);
+      g = Math.min(255, g + 15);
+      b = Math.min(255, b + 15);
+    }
+    setPixel(png, x, y, r, g, b);
+  }
+
+  for (const [x, y] of rightWing) {
+    const isEdge = !rightWing.some(([ex, ey]) => ex === x + 1 && ey === y) ||
+                   !rightWing.some(([ex, ey]) => ex === x && ey === y - 1);
+    const isVein = (x + y) % 3 === 0;
+
+    let r, g, b;
+    if (isEdge) {
+      r = vary(darkR, 12, x, y, 510);
+      g = vary(darkG, 12, x, y, 511);
+      b = vary(darkB, 12, x, y, 512);
+    } else if (isVein) {
+      r = vary(darkR + 15, 10, x, y, 513);
+      g = vary(darkG + 15, 10, x, y, 514);
+      b = vary(darkB + 15, 10, x, y, 515);
+    } else {
+      r = vary(baseR, 15, x, y, 516);
+      g = vary(baseG, 15, x, y, 517);
+      b = vary(baseB, 15, x, y, 518);
+    }
+    if (y <= 4) {
+      r = Math.min(255, r + 15);
+      g = Math.min(255, g + 15);
+      b = Math.min(255, b + 15);
+    }
+    setPixel(png, x, y, r, g, b);
+  }
+
+  // Center spine (connecting the two wings at top)
+  for (let y = 2; y <= 6; y++) {
+    setPixel(png, 7, y, vary(darkR - 10, 8, 7, y, 520), vary(darkG - 10, 8, 7, y, 521), vary(darkB - 10, 8, 7, y, 522));
+    setPixel(png, 8, y, vary(darkR - 10, 8, 8, y, 523), vary(darkG - 10, 8, 8, y, 524), vary(darkB - 10, 8, 8, y, 525));
+  }
+
+  savePNG(png, path.join(ASSETS, 'item', 'elytra.png'));
+}
+
+// === FIREWORK ROCKET ===
+{
+  const png = createPNG(16, 16);
+  fill(png, 0, 0, 0, 0);
+
+  // Rocket stick (wooden stick body, tall & thin)
+  // Stick runs from y=3 to y=14 in center
+  for (let y = 5; y <= 14; y++) {
+    // Main stick body (2px wide)
+    setPixel(png, 7, y, vary(180, 10, 7, y, 600), vary(150, 10, 7, y, 601), vary(90, 10, 7, y, 602));
+    setPixel(png, 8, y, vary(160, 10, 8, y, 603), vary(130, 10, 8, y, 604), vary(75, 10, 8, y, 605));
+  }
+
+  // Paper wrapping around the stick (lighter, wider section in middle)
+  for (let y = 6; y <= 12; y++) {
+    // Paper wrap (beige/off-white)
+    setPixel(png, 6, y, vary(225, 8, 6, y, 610), vary(218, 8, 6, y, 611), vary(200, 8, 6, y, 612));
+    setPixel(png, 7, y, vary(235, 8, 7, y, 613), vary(228, 8, 7, y, 614), vary(210, 8, 7, y, 615));
+    setPixel(png, 8, y, vary(220, 8, 8, y, 616), vary(213, 8, 8, y, 617), vary(195, 8, 8, y, 618));
+    setPixel(png, 9, y, vary(210, 8, 9, y, 619), vary(203, 8, 9, y, 620), vary(185, 8, 9, y, 621));
+  }
+
+  // Colored band on the paper (red stripe like Minecraft)
+  for (let y = 8; y <= 10; y++) {
+    setPixel(png, 6, y, vary(180, 10, 6, y, 630), vary(40, 10, 6, y, 631), vary(40, 10, 6, y, 632));
+    setPixel(png, 7, y, vary(200, 10, 7, y, 633), vary(50, 10, 7, y, 634), vary(50, 10, 7, y, 635));
+    setPixel(png, 8, y, vary(190, 10, 8, y, 636), vary(45, 10, 8, y, 637), vary(45, 10, 8, y, 638));
+    setPixel(png, 9, y, vary(170, 10, 9, y, 639), vary(35, 10, 9, y, 640), vary(35, 10, 9, y, 641));
+  }
+
+  // Rocket head / tip (cone shape at top)
+  setPixel(png, 7, 3, vary(200, 10, 7, 3, 650), vary(200, 10, 7, 3, 651), vary(200, 10, 7, 3, 652));
+  setPixel(png, 8, 3, vary(190, 10, 8, 3, 653), vary(190, 10, 8, 3, 654), vary(190, 10, 8, 3, 655));
+  setPixel(png, 6, 4, vary(190, 8, 6, 4, 656), vary(190, 8, 6, 4, 657), vary(190, 8, 6, 4, 658));
+  setPixel(png, 7, 4, vary(210, 8, 7, 4, 659), vary(210, 8, 7, 4, 660), vary(210, 8, 7, 4, 661));
+  setPixel(png, 8, 4, vary(200, 8, 8, 4, 662), vary(200, 8, 8, 4, 663), vary(200, 8, 8, 4, 664));
+  setPixel(png, 9, 4, vary(180, 8, 9, 4, 665), vary(180, 8, 9, 4, 666), vary(180, 8, 9, 4, 667));
+  // Nose tip
+  setPixel(png, 7, 2, vary(220, 5, 7, 2, 668), vary(220, 5, 7, 2, 669), vary(220, 5, 7, 2, 670));
+  setPixel(png, 8, 2, vary(210, 5, 8, 2, 671), vary(210, 5, 8, 2, 672), vary(210, 5, 8, 2, 673));
+
+  // Fins at bottom (small triangular fins)
+  // Left fin
+  setPixel(png, 5, 13, vary(200, 8, 5, 13, 680), vary(50, 8, 5, 13, 681), vary(50, 8, 5, 13, 682));
+  setPixel(png, 5, 14, vary(180, 8, 5, 14, 683), vary(40, 8, 5, 14, 684), vary(40, 8, 5, 14, 685));
+  setPixel(png, 6, 14, vary(190, 8, 6, 14, 686), vary(45, 8, 6, 14, 687), vary(45, 8, 6, 14, 688));
+  // Right fin
+  setPixel(png, 10, 13, vary(200, 8, 10, 13, 690), vary(50, 8, 10, 13, 691), vary(50, 8, 10, 13, 692));
+  setPixel(png, 10, 14, vary(180, 8, 10, 14, 693), vary(40, 8, 10, 14, 694), vary(40, 8, 10, 14, 695));
+  setPixel(png, 9, 14, vary(190, 8, 9, 14, 696), vary(45, 8, 9, 14, 697), vary(45, 8, 9, 14, 698));
+
+  savePNG(png, path.join(ASSETS, 'item', 'firework_rocket.png'));
+}
 
 console.log('\n=== Texture generation complete! ===');

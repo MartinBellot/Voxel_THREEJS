@@ -193,6 +193,9 @@ export const CraftingRecipes = [
   { result: T.OAK_TRAPDOOR, count: 2, pattern: ['PPP', 'PPP'], key: { P: T.OAK_PLANKS } },
   { result: T.SPRUCE_TRAPDOOR, count: 2, pattern: ['PPP', 'PPP'], key: { P: T.SPRUCE_PLANKS } },
   { result: T.IRON_TRAPDOOR, count: 1, pattern: ['II', 'II'], key: { I: T.IRON_INGOT } },
+
+  // === FIREWORK ROCKET ===
+  { result: T.FIREWORK_ROCKET, count: 3, shapeless: true, ingredients: [T.GUNPOWDER] },
 ];
 
 // Group of planks types for the PLANKS key

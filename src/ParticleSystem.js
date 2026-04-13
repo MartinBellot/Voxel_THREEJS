@@ -189,6 +189,33 @@ export class ParticleSystem {
     }
   }
 
+  // Firework rocket trail particles
+  spawnFireworkTrail(x, y, z) {
+    const count = 5;
+    for (let i = 0; i < count; i++) {
+      const pos = new THREE.Vector3(
+        x + (Math.random() - 0.5) * 0.4,
+        y + (Math.random() - 0.5) * 0.4,
+        z + (Math.random() - 0.5) * 0.4
+      );
+      const vel = new THREE.Vector3(
+        (Math.random() - 0.5) * 1.5,
+        (Math.random() - 0.5) * 1.5,
+        (Math.random() - 0.5) * 1.5
+      );
+      // Random bright colors
+      const colors = [
+        new THREE.Color(1, 0.2, 0.2),
+        new THREE.Color(1, 0.8, 0.1),
+        new THREE.Color(0.2, 1, 0.3),
+        new THREE.Color(0.3, 0.5, 1),
+        new THREE.Color(1, 1, 1),
+      ];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      this.addParticle(pos, vel, color, 0.1, 0.4 + Math.random() * 0.3, 3);
+    }
+  }
+
   addParticle(position, velocity, color, size, lifetime, gravity) {
     if (this.particles.length >= this.maxParticles) {
       // Remove oldest

@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { createNoise3D, createNoise2D } from 'simplex-noise';
 import { Chunk } from './Chunk.js';
 import { SeededRandom } from '../Utils/SeededRandom.js';
-import { BlockType, isLiquid } from './Block.js';
+import { BlockType, isLiquid, isSolid } from './Block.js';
+import { VillageGenerator } from './VillageGenerator.js';
 
 export class World {
   constructor(game) {
@@ -32,8 +33,15 @@ export class World {
 
     // Liquid flow queue
     this.liquidQueue = [];
+    this.liquidQueueSet = new Set();
     this.liquidTimer = 0;
     this.liquidTickRate = 0.25; // Process liquids every 0.25s (water) / 1.25s lava
+
+    // Source block tracking: "x,y,z" -> true means this is a player-placed source
+    this.liquidSources = new Set();
+    // Retraction queue: blocks scheduled for removal check
+    this.retractionQueue = [];
+    this.retractionQueueSet = new Set();
 
     // Shared materials (created lazily, reused by all chunks)
     this._terrainMaterial = null;
@@ -43,6 +51,9 @@ export class World {
     this._biomeCache = new Map();
     this._biomeCacheSize = 0;
     this._maxBiomeCacheSize = 10000;
+
+    // Village generator
+    this.villageGenerator = new VillageGenerator(this);
 
     // Crop growth
     this.cropTimer = 0;
@@ -85,11 +96,14 @@ export class World {
 
   setupNoise() {
       const rng = new SeededRandom(this.seed);
-      // Create noise functions using the seeded random
       this.noise3D = createNoise3D(() => rng.random());
       this.noise2D = createNoise2D(() => rng.random());
       this.biomeNoise = createNoise2D(() => rng.random());
       this.humidityNoise = createNoise2D(() => rng.random());
+      this.riverNoise = createNoise2D(() => rng.random());
+      this.riverNoise2 = createNoise2D(() => rng.random());
+      this.riverWarpX = createNoise2D(() => rng.random());
+      this.riverWarpZ = createNoise2D(() => rng.random());
   }
 
   getVolcanoData(x, z) {
@@ -157,6 +171,73 @@ export class World {
       return { dist: closestDist, center: islandCenter, radius: islandRadius };
   }
 
+  getRiverData(x, z) {
+    // Domain warping: distort coordinates for natural meanders
+    const warpScale = 0.002;
+    const warpStrength = 120;
+    const wx = x + this.riverWarpX(x * warpScale, z * warpScale) * warpStrength;
+    const wz = z + this.riverWarpZ(x * warpScale, z * warpScale) * warpStrength;
+
+    // Two perpendicular river networks with warped coords
+    const n1 = this.riverNoise(wx * 0.0025, wz * 0.001);
+    const n2 = this.riverNoise2(wx * 0.001, wz * 0.0025);
+
+    // Add detail noise for small-scale variation
+    const detail = this.noise2D(x * 0.01, z * 0.01) * 0.015;
+
+    const r1 = Math.abs(n1) + detail * 0.5;
+    const r2 = Math.abs(n2) + detail * 0.5;
+
+    // Width varies naturally along the river
+    const widthNoise = this.noise2D(x * 0.003, z * 0.003);
+    const baseWidth = 0.035 + widthNoise * 0.012;
+
+    let riverDist, width;
+    if (r1 < r2) {
+      riverDist = r1;
+      width = baseWidth;
+    } else {
+      riverDist = r2;
+      width = baseWidth * 0.65;
+    }
+
+    const isRiver = riverDist < width;
+    const t = isRiver ? 1 - riverDist / width : 0;
+    const depth = Math.floor(t * 4) + 2;
+
+    return { isRiver, depth, t, riverDist, width };
+  }
+
+  getLakeData(x, z) {
+    const gridSize = 350;
+    const gridX = Math.floor(x / gridSize);
+    const gridZ = Math.floor(z / gridSize);
+
+    let closestDist = Infinity;
+    let lakeCenter = null;
+    let lakeRadius = 0;
+
+    for (let gx = gridX - 1; gx <= gridX + 1; gx++) {
+      for (let gz = gridZ - 1; gz <= gridZ + 1; gz++) {
+        const cellSeed = (this.seed * 30000 + gx * 5123.123 + gz * 8901.321) % 1;
+        const rng = new SeededRandom(cellSeed);
+
+        if (rng.random() < 0.25) {
+          const lx = gx * gridSize + rng.random() * gridSize;
+          const lz = gz * gridSize + rng.random() * gridSize;
+          const dist = Math.sqrt((x - lx) ** 2 + (z - lz) ** 2);
+          if (dist < closestDist) {
+            closestDist = dist;
+            lakeCenter = { x: lx, z: lz };
+            lakeRadius = 12 + rng.random() * 28;
+          }
+        }
+      }
+    }
+
+    return { dist: closestDist, center: lakeCenter, radius: lakeRadius };
+  }
+
   setSeed(seed) {
       console.log("Setting world seed:", seed);
       this.seed = seed;
@@ -178,6 +259,7 @@ export class World {
       this.chunks.clear();
       this._biomeCache.clear();
       this._biomeCacheSize = 0;
+      this.villageGenerator = new VillageGenerator(this);
       // Reset shared materials since atlas may change
       this._terrainMaterial = null;
       this._waterMaterial = null;
@@ -263,92 +345,115 @@ export class World {
     if (volcanoData.center && volcanoData.dist < volcanoRadius) {
         const maxVolcanoHeight = 240;
         const baseHeight = this.seaLevel + 10;
-        
-        // Cone shape
-        // Normalized distance 0..1
         const t = volcanoData.dist / volcanoRadius;
-        
-        // Height based on distance (Cone)
-        // Using a curve that gets steeper near the top
         let volcanoH = baseHeight + (maxVolcanoHeight - baseHeight) * (1 - Math.pow(t, 0.8));
-        
-        // Crater logic
         if (volcanoData.dist < craterRadius) {
-            // Inside crater
-            // We want it to go down to bedrock (approx height 5)
-            // Smooth transition from rim to bottom
-            // Rim is at craterRadius
-            
-            // Normalized crater distance 0..1 (0 is center)
             const ct = volcanoData.dist / craterRadius;
-            
-            // Height at rim
             const rimHeight = baseHeight + (maxVolcanoHeight - baseHeight) * (1 - Math.pow(craterRadius/volcanoRadius, 0.8));
-            
-            // Crater function: 5 at center, rimHeight at edge
-            // Use power to make it steep or bowl like
             volcanoH = 5 + (rimHeight - 5) * Math.pow(ct, 4);
         }
-        
-        // Add roughness
         volcanoH += localNoise * 3;
-        
         return Math.min(this.chunkHeight - 1, Math.max(1, Math.floor(volcanoH)));
     }
 
-    let height = this.seaLevel; // Base sea level (30)
+    // Smoothstep helper for blending
+    const smoothstep = (edge0, edge1, x) => {
+      const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+      return t * t * (3 - 2 * t);
+    };
+
+    let height = this.seaLevel;
     
-    if (elevation < -0.2) {
-        // Ocean
-        // Smooth transition from -0.2 downwards
-        // noise: -1 ... -0.2
-        // t = 0 (at -0.2) to 1 (at -1)
-        // height = 30 - t * depth
-        const t = (elevation + 0.2) / -0.8; // 0 to 1 approx
-        height = this.seaLevel - (t * 30) + (localNoise * 2); // Deeper oceans
-    } else if (elevation < -0.1) {
-        // Beach
-        // noise: -0.2 ... -0.1
-        // height: 30 ... 32
-        const t = (elevation + 0.2) / 0.1; // 0 to 1
-        height = this.seaLevel + (t * 3) + (localNoise * 1);
+    // Blend width for transitions
+    const elevBlend = 0.06;
+    const humBlend = 0.08;
+    
+    // Calculate heights for each elevation zone with smooth blending
+    // Ocean height
+    const oceanT = Math.max(0, Math.min(1, (elevation + 0.2) / -0.8));
+    const oceanHeight = this.seaLevel - (oceanT * 30) + (localNoise * 2);
+    
+    // Beach height  
+    const beachT = Math.max(0, Math.min(1, (elevation + 0.2) / 0.1));
+    const beachHeight = this.seaLevel + (beachT * 3) + (localNoise * 1);
+    
+    // Land base height
+    const landBase = this.seaLevel + 3 + (elevation + 0.1) * 30;
+    
+    // Biome-specific land height modifiers (each calculated independently)
+    const desertH = landBase + localNoise * 2;
+    const savannaH = landBase + localNoise * 3;
+    const swampH = this.seaLevel + 1 + localNoise * 2;
+    const jungleH = landBase + localNoise * 6;
+    const mushroomH = landBase + localNoise * 8;
+    const forestPlainsH = landBase + localNoise * 5;
+    
+    // Mountain height
+    const mountainFactor = Math.max(0, (elevation - 0.6) * 2.5);
+    let mountainH = landBase + Math.pow(mountainFactor, 1.2) * 180 + (localNoise * 10);
+    if (mountainFactor > 0.5) {
+      mountainH = Math.max(mountainH, 100 + localNoise * 10);
+    }
+
+    // Blend humidity-based biome heights smoothly
+    let landHeight;
+    
+    // Humidity weights using smoothstep transitions
+    const wDesert = 1 - smoothstep(-0.4 - humBlend, -0.4 + humBlend, humidity);
+    const wSavanna = smoothstep(-0.4 - humBlend, -0.4 + humBlend, humidity) * (1 - smoothstep(-0.15 - humBlend, -0.15 + humBlend, humidity));
+    const wForest = smoothstep(-0.15 - humBlend, -0.15 + humBlend, humidity) * (1 - smoothstep(0.15 - humBlend, 0.15 + humBlend, humidity));
+    const wJungle = smoothstep(0.15 - humBlend, 0.15 + humBlend, humidity) * (1 - smoothstep(0.35 - humBlend, 0.35 + humBlend, humidity));
+    const wSwamp = smoothstep(0.35 - humBlend, 0.35 + humBlend, humidity) * (1 - smoothstep(0.6 - humBlend, 0.6 + humBlend, humidity));
+    const wMushroom = smoothstep(0.6 - humBlend, 0.6 + humBlend, humidity);
+    
+    const wTotal = wDesert + wSavanna + wForest + wJungle + wSwamp + wMushroom;
+    if (wTotal > 0) {
+      landHeight = (wDesert * desertH + wSavanna * savannaH + wForest * forestPlainsH + 
+                    wJungle * jungleH + wSwamp * swampH + wMushroom * mushroomH) / wTotal;
     } else {
-        // Land
-        // noise: -0.1 ... 1
-        // height: 32 ... up
-        
-        // Base land rise
-        height = this.seaLevel + 3 + (elevation + 0.1) * 30; 
-        
-        // Biome specific additions
-        if (elevation > 0.6) { // Mountain
-             // Exponential mountain growth
-             const mountainFactor = (elevation - 0.6) * 2.5; // Adjusted for new range
-             // Target: 100 to 250
-             // Base height is around 60-70 here.
-             // We add up to 180 more.
-             height += Math.pow(mountainFactor, 1.2) * 180 + (localNoise * 10);
-             
-             // Ensure minimum mountain height if deep in mountain biome
-             if (mountainFactor > 0.5) {
-                 height = Math.max(height, 100 + localNoise * 10);
-             }
-        } else {
-             // Land biomes terrain
-             if (humidity < -0.4) { // Desert
-                 height += localNoise * 2; // Flat
-             } else if (humidity < -0.15) { // Savanna
-                 height += localNoise * 3; // Mostly flat with slight hills
-             } else if (humidity > 0.6) { // Mushrooms
-                 height += localNoise * 8; // Rolling hills
-             } else if (humidity > 0.35) { // Swamp
-                 height = this.seaLevel + 1 + localNoise * 2; // Very flat, near water
-             } else if (humidity > 0.15) { // Jungle
-                 height += localNoise * 6; // Moderate hills
-             } else { // Pine Forest / Birch Forest / Plains
-                 height += localNoise * 5; // Normal
-             }
+      landHeight = forestPlainsH;
+    }
+
+    // Blend between Ocean -> Beach -> Land -> Mountain using elevation
+    const oceanToBeach = smoothstep(-0.2 - elevBlend, -0.2 + elevBlend, elevation);
+    const beachToLand = smoothstep(-0.1 - elevBlend, -0.1 + elevBlend, elevation);
+    const landToMountain = smoothstep(0.6 - elevBlend, 0.6 + elevBlend, elevation);
+    
+    // Layer the blends
+    height = oceanHeight * (1 - oceanToBeach) + beachHeight * oceanToBeach;
+    height = height * (1 - beachToLand) + landHeight * beachToLand;
+    height = height * (1 - landToMountain) + mountainH * landToMountain;
+
+    // River carving (skip ocean, beach, mountain, desert)
+    const isOcean = elevation < -0.2;
+    const isBeach = elevation >= -0.2 && elevation < -0.1;
+    const isMountain = elevation > 0.6;
+    const isDesert = !isOcean && !isBeach && !isMountain && humidity < -0.4;
+
+    if (!isOcean && !isBeach && !isMountain && !isDesert) {
+      const riverData = this.getRiverData(x, z);
+      if (riverData.isRiver && height > this.seaLevel - 5) {
+        const riverBed = this.seaLevel - riverData.depth;
+        height = Math.min(height, riverBed);
+      } else if (riverData.riverDist < riverData.width * 3 && height > this.seaLevel + 2) {
+        const bankBlend = (riverData.riverDist - riverData.width) / (riverData.width * 2);
+        const bankTarget = this.seaLevel + 1;
+        height = bankTarget + (height - bankTarget) * Math.min(1, Math.max(0, bankBlend));
+      }
+
+      const lakeData = this.getLakeData(x, z);
+      if (lakeData.center && lakeData.dist < lakeData.radius) {
+        const lt = lakeData.dist / lakeData.radius;
+        const lakeDepth = (1 - lt * lt) * 7;
+        const lakeBed = this.seaLevel + 1 - lakeDepth;
+        height = Math.min(height, lakeBed);
+      } else if (lakeData.center && lakeData.dist < lakeData.radius * 1.4) {
+        const shoreBlend = (lakeData.dist - lakeData.radius) / (lakeData.radius * 0.4);
+        const shoreTarget = this.seaLevel + 2;
+        if (height > shoreTarget) {
+          height = shoreTarget + (height - shoreTarget) * Math.min(1, Math.max(0, shoreBlend));
         }
+      }
     }
     
     return Math.min(this.chunkHeight - 1, Math.max(1, Math.floor(height)));
@@ -562,34 +667,102 @@ export class World {
     }
     // Trigger liquid updates for nearby blocks
     if (type === BlockType.AIR) {
+      this.scheduleLiquidRetraction(x, y, z);
       this.scheduleLiquidUpdate(x, y, z);
     }
     if (type === BlockType.WATER || type === BlockType.LAVA) {
+      this.liquidSources.add(`${x},${y},${z}`);
       this.scheduleLiquidUpdate(x, y, z);
     }
   }
 
+  setBlockDirect(x, y, z, type) {
+    const chunkX = Math.floor(x / this.chunkSize);
+    const chunkZ = Math.floor(z / this.chunkSize);
+    const key = `${chunkX},${chunkZ}`;
+    const chunk = this.chunks.get(key);
+    if (!chunk) return;
+
+    let localX = x % this.chunkSize;
+    let localZ = z % this.chunkSize;
+    if (localX < 0) localX += this.chunkSize;
+    if (localZ < 0) localZ += this.chunkSize;
+
+    chunk.setBlock(localX, Math.floor(y), localZ, type);
+  }
+
   scheduleLiquidUpdate(x, y, z) {
-    // Check neighbors for liquids that might flow
     const offsets = [[0, 1, 0], [0, -1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]];
     for (const [dx, dy, dz] of offsets) {
       const nx = x + dx, ny = y + dy, nz = z + dz;
       const block = this.getBlock(nx, ny, nz);
       if (block === BlockType.WATER || block === BlockType.LAVA) {
         const key = `${nx},${ny},${nz}`;
-        if (!this.liquidQueue.some(q => q.key === key)) {
-          this.liquidQueue.push({ x: nx, y: ny, z: nz, key, type: block });
+        if (!this.liquidQueueSet.has(key)) {
+          this.liquidQueueSet.add(key);
+          this.liquidQueue.push({ x: nx, y: ny, z: nz, key, type: block, dist: 0 });
         }
       }
     }
-    // Also add self if it's a liquid
     const selfBlock = this.getBlock(x, y, z);
     if (selfBlock === BlockType.WATER || selfBlock === BlockType.LAVA) {
       const key = `${x},${y},${z}`;
-      if (!this.liquidQueue.some(q => q.key === key)) {
-        this.liquidQueue.push({ x, y, z, key, type: selfBlock });
+      if (!this.liquidQueueSet.has(key)) {
+        this.liquidQueueSet.add(key);
+        this.liquidQueue.push({ x, y, z, key, type: selfBlock, dist: 0 });
       }
     }
+  }
+
+  scheduleLiquidRetraction(x, y, z) {
+    const offsets = [[0, 1, 0], [0, -1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]];
+    for (const [dx, dy, dz] of offsets) {
+      const nx = x + dx, ny = y + dy, nz = z + dz;
+      const block = this.getBlock(nx, ny, nz);
+      if (isLiquid(block)) {
+        const key = `${nx},${ny},${nz}`;
+        if (!this.retractionQueueSet.has(key)) {
+          this.retractionQueueSet.add(key);
+          this.retractionQueue.push({ x: nx, y: ny, z: nz, key, type: block });
+        }
+      }
+    }
+  }
+
+  isLiquidSource(x, y, z) {
+    if (this.liquidSources.has(`${x},${y},${z}`)) return true;
+    const height = this.getHeight(x, z);
+    if (y <= this.seaLevel && height <= this.seaLevel) return true;
+    return false;
+  }
+
+  hasLiquidSupport(x, y, z, type, visited) {
+    const key = `${x},${y},${z}`;
+    if (visited.has(key)) return false;
+    visited.add(key);
+    if (visited.size > 200) return false;
+
+    if (this.isLiquidSource(x, y, z)) return true;
+
+    const above = this.getBlock(x, y + 1, z);
+    if (above === type) {
+      if (this.isLiquidSource(x, y + 1, z)) return true;
+      if (this.hasLiquidSupport(x, y + 1, z, type, visited)) return true;
+    }
+
+    const flowRange = type === BlockType.WATER ? 7 : 3;
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (const [dx, dz] of dirs) {
+      const nx = x + dx, nz = z + dz;
+      const neighbor = this.getBlock(nx, y, nz);
+      if (neighbor === type) {
+        const nAbove = this.getBlock(nx, y + 1, nz);
+        if (nAbove === type) return true;
+        if (this.isLiquidSource(nx, y, nz)) return true;
+      }
+    }
+
+    return false;
   }
 
   updateLiquids(delta) {
@@ -597,32 +770,106 @@ export class World {
     if (this.liquidTimer < this.liquidTickRate) return;
     this.liquidTimer = 0;
 
-    const maxUpdates = 50; // Process at most 50 per tick
-    const toProcess = this.liquidQueue.splice(0, maxUpdates);
+    const chunksToUpdate = new Set();
 
-    for (const entry of toProcess) {
+    // Process retraction first
+    const maxRetractions = 64;
+    const retractBatch = this.retractionQueue.splice(0, maxRetractions);
+    for (const entry of retractBatch) {
+      this.retractionQueueSet.delete(entry.key);
+    }
+
+    for (const entry of retractBatch) {
       const { x, y, z, type } = entry;
       const current = this.getBlock(x, y, z);
-      if (current !== type) continue; // Block changed since queued
+      if (!isLiquid(current)) continue;
 
-      // Flow down
+      const visited = new Set();
+      if (!this.hasLiquidSupport(x, y, z, current, visited)) {
+        this.setBlockDirect(x, y, z, BlockType.AIR);
+        this.liquidSources.delete(`${x},${y},${z}`);
+        const chunkKey = `${Math.floor(x / this.chunkSize)},${Math.floor(z / this.chunkSize)}`;
+        chunksToUpdate.add(chunkKey);
+
+        const offsets = [[0, -1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]];
+        for (const [dx, dy, dz] of offsets) {
+          const nx = x + dx, ny = y + dy, nz = z + dz;
+          const neighbor = this.getBlock(nx, ny, nz);
+          if (isLiquid(neighbor)) {
+            const nKey = `${nx},${ny},${nz}`;
+            if (!this.retractionQueueSet.has(nKey)) {
+              this.retractionQueueSet.add(nKey);
+              this.retractionQueue.push({ x: nx, y: ny, z: nz, key: nKey, type: neighbor });
+            }
+          }
+        }
+      }
+    }
+
+    // Process liquid spread
+    const maxUpdates = 64;
+    const toProcess = this.liquidQueue.splice(0, maxUpdates);
+    for (const entry of toProcess) {
+      this.liquidQueueSet.delete(entry.key);
+    }
+
+    for (const entry of toProcess) {
+      const { x, y, z, type, dist } = entry;
+      const current = this.getBlock(x, y, z);
+      if (current !== type) continue;
+
+      const flowRange = type === BlockType.WATER ? 7 : 3;
+
       const below = this.getBlock(x, y - 1, z);
       if (below === BlockType.AIR) {
-        this.setBlock(x, y - 1, z, type);
+        this.setBlockDirect(x, y - 1, z, type);
+        const chunkKey = `${Math.floor(x / this.chunkSize)},${Math.floor(z / this.chunkSize)}`;
+        chunksToUpdate.add(chunkKey);
+        const newKey = `${x},${y - 1},${z}`;
+        if (!this.liquidQueueSet.has(newKey)) {
+          this.liquidQueueSet.add(newKey);
+          this.liquidQueue.push({ x, y: y - 1, z, key: newKey, type, dist: 0 });
+        }
         continue;
       }
 
-      // Flow sideways (only if can't flow down)
-      const flowRange = type === BlockType.WATER ? 7 : 3;
+      if (dist >= flowRange) continue;
+
       const dirs = [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]];
-      for (const [dx, _, dz] of dirs) {
+      for (const [dx, , dz] of dirs) {
         const nx = x + dx, nz = z + dz;
         const neighbor = this.getBlock(nx, y, nz);
         if (neighbor === BlockType.AIR) {
-          this.setBlock(nx, y, nz, type);
+          this.setBlockDirect(nx, y, nz, type);
+          const chunkKey = `${Math.floor(nx / this.chunkSize)},${Math.floor(nz / this.chunkSize)}`;
+          chunksToUpdate.add(chunkKey);
+          const newKey = `${nx},${y},${nz}`;
+          if (!this.liquidQueueSet.has(newKey)) {
+            this.liquidQueueSet.add(newKey);
+            this.liquidQueue.push({ x: nx, y, z: nz, key: newKey, type, dist: dist + 1 });
+          }
         }
       }
-    }  }
+    }
+
+    for (const chunkKey of chunksToUpdate) {
+      const chunk = this.chunks.get(chunkKey);
+      if (chunk) {
+        chunk.updateMesh();
+        const [cx, cz] = chunkKey.split(',').map(Number);
+        const neighbors = [
+          `${cx - 1},${cz}`, `${cx + 1},${cz}`,
+          `${cx},${cz - 1}`, `${cx},${cz + 1}`
+        ];
+        for (const nk of neighbors) {
+          if (!chunksToUpdate.has(nk)) {
+            const nc = this.chunks.get(nk);
+            if (nc) nc.updateMesh();
+          }
+        }
+      }
+    }
+  }
 
   registerCrop(x, y, z, blockType) {
     this.crops.set(`${x},${y},${z}`, blockType);

@@ -366,7 +366,20 @@ export class Chunk {
              if ((y < surfaceHeight - 3 && caveNoise > 0.4) || isCaveEntrance) {
                this.data[index] = BlockType.AIR;
              } else {
-               if (biome === 'Desert' || biome === 'Beach') {
+               // River/lake bed: surface below sea level in non-ocean biome
+               const isRiverBed = surfaceHeight < this.world.seaLevel && biome !== 'Ocean' && biome !== 'Beach';
+               if (isRiverBed) {
+                   if (y === surfaceHeight - 1) {
+                     const bedHash = Math.abs(Math.sin(worldX * 0.5 + worldZ * 0.7)) % 1;
+                     if (bedHash < 0.25) this.data[index] = BlockType.GRAVEL;
+                     else if (bedHash < 0.45) this.data[index] = BlockType.CLAY;
+                     else this.data[index] = BlockType.SAND;
+                   } else if (y > surfaceHeight - 4) {
+                     this.data[index] = BlockType.SAND;
+                   } else {
+                     this.data[index] = this.getOreOrStone(worldX, y, worldZ);
+                   }
+               } else if (biome === 'Desert' || biome === 'Beach') {
                    this.data[index] = BlockType.SAND;
                } else if (biome === 'Ocean') {
                    this.data[index] = BlockType.SAND;
@@ -492,6 +505,11 @@ export class Chunk {
 
     // Structure generation
     this.generateStructures();
+
+    // Village generation
+    if (this.world.villageGenerator) {
+      this.world.villageGenerator.generateForChunk(this);
+    }
 
     // Final bounds check (in case decoration added blocks higher/lower)
     // We can just add a safety margin or scan. 
@@ -1239,7 +1257,7 @@ export class Chunk {
           }
           
           const isWater = blockId === BlockType.WATER;
-          const isTorch = blockId === BlockType.TORCH;
+          const isTorch = def.model === BlockModels.TORCH;
           const isCactus = blockId === BlockType.CACTUS;
           const isCross = def.model === BlockModels.CROSS;
           const isGrass = def.model === BlockModels.GRASS;
@@ -1324,7 +1342,7 @@ export class Chunk {
               this.addTrapdoor(x, y, z, positions, normals, colors, uvs, color, blockId);
           } else {
               // Torch Geometry only - NO PointLight (massive performance win)
-              this.addTorch(x, y, z, positions, normals, colors, uvs, color);
+              this.addTorch(x, y, z, positions, normals, colors, uvs, color, blockId);
           }
         }
       }
@@ -1521,65 +1539,165 @@ export class Chunk {
       }
   }
 
-  addTorch(x, y, z, positions, normals, colors, uvs, color) {
-      // Simple torch geometry (thin box)
-      // Center at x+0.5, y+0.5, z+0.5
-      // Width 0.15, Height 0.6
-      const w = 0.15 / 2;
-      const h = 0.6;
-      const bottom = 0; // On ground
-      
-      // We can reuse addFace logic but with custom corners
-      // Or just manually push vertices.
-      // Let's manually push a simple box (5 faces, no bottom)
-      
+  addTorch(x, y, z, positions, normals, colors, uvs, color, blockId) {
+      // Minecraft torch: 2/16 wide (0.125), 10/16 tall (0.625)
+      const w = 1 / 16; // half-width = 1/16 block
+      const h = 10 / 16; // height = 10/16 block
+
       const cx = x + 0.5;
       const cz = z + 0.5;
       const cy = y;
 
-      // Define corners relative to center
+      const def = BlockDefinitions[blockId];
+      const wallDir = def ? def.wallTorch : null;
+
+      // Build upright torch corners first
       const p = [
-          [cx - w, cy, cz + w], // 0: FL
-          [cx + w, cy, cz + w], // 1: FR
-          [cx + w, cy, cz - w], // 2: BR
-          [cx - w, cy, cz - w], // 3: BL
-          [cx - w, cy + h, cz + w], // 4: TFL
-          [cx + w, cy + h, cz + w], // 5: TFR
-          [cx + w, cy + h, cz - w], // 6: TBR
-          [cx - w, cy + h, cz - w]  // 7: TBL
+          [cx - w, cy, cz + w], // 0: FL bottom
+          [cx + w, cy, cz + w], // 1: FR bottom
+          [cx + w, cy, cz - w], // 2: BR bottom
+          [cx - w, cy, cz - w], // 3: BL bottom
+          [cx - w, cy + h, cz + w], // 4: FL top
+          [cx + w, cy + h, cz + w], // 5: FR top
+          [cx + w, cy + h, cz - w], // 6: BR top
+          [cx - w, cy + h, cz - w]  // 7: BL top
       ];
 
-      // Faces
+      // Wall torch: tilt ~22.5° away from wall, pivot at base center
+      if (wallDir) {
+          const angle = 22.5 * Math.PI / 180;
+          const sinA = Math.sin(angle);
+          const cosA = Math.cos(angle);
+
+          // Offset: push base toward wall, shift up slightly
+          // dx, dz: direction FROM wall INTO room (where torch flame points)
+          let dx = 0, dz = 0;
+          if (wallDir === 'north') dz = 1;
+          else if (wallDir === 'south') dz = -1;
+          else if (wallDir === 'east') dx = -1;
+          else if (wallDir === 'west') dx = 1;
+
+          // Rotate each vertex around base center (cx, cy, cz)
+          for (let i = 0; i < 8; i++) {
+              const relX = p[i][0] - cx;
+              const relY = p[i][1] - cy;
+              const relZ = p[i][2] - cz;
+
+              // Tilt in the dx/dz direction
+              if (dx !== 0) {
+                  // Rotate around Z axis (tilt in X direction)
+                  p[i][0] = cx + relX * cosA - relY * sinA * dx;
+                  p[i][1] = cy + Math.abs(relX) * sinA + relY * cosA;
+              } else {
+                  // Rotate around X axis (tilt in Z direction)
+                  p[i][2] = cz + relZ * cosA - relY * sinA * dz;
+                  p[i][1] = cy + Math.abs(relZ) * sinA + relY * cosA;
+              }
+          }
+
+          // Shift base toward wall
+          const wallOffset = 7 / 16;
+          for (let i = 0; i < 8; i++) {
+              p[i][0] += dx * wallOffset;
+              p[i][2] += dz * wallOffset;
+          }
+
+          // Raise slightly so bottom is at wall attachment point (3.5/16 up)
+          const yOffset = 3.5 / 16;
+          for (let i = 0; i < 8; i++) {
+              p[i][1] += yOffset;
+          }
+      }
+
+      // 5 faces (no bottom): Right, Left, Top, Front, Back
       const faces = [
-          [1, 5, 6, 2], // Right
-          [3, 7, 4, 0], // Left
-          [4, 7, 6, 5], // Top
-          [0, 4, 5, 1], // Front
-          [2, 6, 7, 3]  // Back
+          [1, 5, 6, 2], // Right (+X)
+          [3, 7, 4, 0], // Left (-X)
+          [4, 7, 6, 5], // Top (+Y)
+          [0, 4, 5, 1], // Front (+Z)
+          [2, 6, 7, 3]  // Back (-Z)
       ];
-      
+
       const faceNormals = [
           [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]
       ];
 
+      // Get texture UVs from atlas
+      const textureManager = this.game.textureManager;
+      let atlasUMin = 0, atlasUMax = 1, atlasVMin = 0, atlasVMax = 1;
+
+      if (textureManager && textureManager.atlasTexture) {
+          const torchDef = BlockDefinitions[BlockType.TORCH];
+          if (torchDef.textures && torchDef.textures.all) {
+              const uvsRect = textureManager.getUVs(torchDef.textures.all);
+              if (uvsRect) {
+                  atlasUMin = uvsRect.uMin;
+                  atlasUMax = uvsRect.uMax;
+                  atlasVMin = uvsRect.vMin;
+                  atlasVMax = uvsRect.vMax;
+              }
+          }
+      }
+
+      const atlasURange = atlasUMax - atlasUMin;
+      const atlasVRange = atlasVMax - atlasVMin;
+
+      // Side face UVs: torch stick + flame
+      const sideUMin = atlasUMin + (7 / 16) * atlasURange;
+      const sideUMax = atlasUMin + (9 / 16) * atlasURange;
+      const sideVMin = atlasVMin + (0 / 16) * atlasVRange;
+      const sideVMax = atlasVMin + (13 / 16) * atlasVRange;
+
+      // Top face UVs
+      const topUMin = atlasUMin + (7 / 16) * atlasURange;
+      const topUMax = atlasUMin + (9 / 16) * atlasURange;
+      const topVMin = atlasVMin + (13 / 16) * atlasVRange;
+      const topVMax = atlasVMin + (15 / 16) * atlasVRange;
+
       for (let i = 0; i < faces.length; i++) {
           const f = faces[i];
           const n = faceNormals[i];
-          
-          // Tri 1 (0, 2, 1) - Correct winding order
+
+          let uMin, uMax, vMin, vMax;
+          if (i === 2) {
+              uMin = topUMin; uMax = topUMax;
+              vMin = topVMin; vMax = topVMax;
+          } else {
+              uMin = sideUMin; uMax = sideUMax;
+              vMin = sideVMin; vMax = sideVMax;
+          }
+
+          // Tri 1 (0, 2, 1)
           positions.push(p[f[0]][0], p[f[0]][1], p[f[0]][2]);
           positions.push(p[f[2]][0], p[f[2]][1], p[f[2]][2]);
           positions.push(p[f[1]][0], p[f[1]][1], p[f[1]][2]);
-          
-          // Tri 2 (0, 3, 2) - Correct winding order
+
+          // Tri 2 (0, 3, 2)
           positions.push(p[f[0]][0], p[f[0]][1], p[f[0]][2]);
           positions.push(p[f[3]][0], p[f[3]][1], p[f[3]][2]);
           positions.push(p[f[2]][0], p[f[2]][1], p[f[2]][2]);
-          
+
+          if (i === 2) {
+              uvs.push(uMin, vMin);
+              uvs.push(uMax, vMax);
+              uvs.push(uMin, vMax);
+
+              uvs.push(uMin, vMin);
+              uvs.push(uMax, vMin);
+              uvs.push(uMax, vMax);
+          } else {
+              uvs.push(uMin, vMin);
+              uvs.push(uMax, vMax);
+              uvs.push(uMin, vMax);
+
+              uvs.push(uMin, vMin);
+              uvs.push(uMax, vMin);
+              uvs.push(uMax, vMax);
+          }
+
           for (let k = 0; k < 6; k++) {
               normals.push(n[0], n[1], n[2]);
-              colors.push(color.r, color.g, color.b);
-              uvs.push(0, 0);
+              colors.push(1, 1, 1);
           }
       }
   }
@@ -2024,35 +2142,65 @@ export class Chunk {
   }
 
   addDoor(x, y, z, positions, normals, colors, uvs, color, blockId) {
+      const def = BlockDefinitions[blockId];
       const uv = this._getBlockUVs(blockId);
       const r = color.r, g = color.g, b = color.b;
       const t = 3 / 16; // door thickness
+      const isOpen = def && def.doorOpen;
 
-      // Door is a thin slab on the -z edge of the block
-      // Front (+z)
-      this._addQuad(positions, normals, colors, uvs,
-          [x, y, z + t], [x, y + 1, z + t], [x + 1, y + 1, z + t], [x + 1, y, z + t],
-          [0, 0, 1], uv, r, g, b);
-      // Back (-z)
-      this._addQuad(positions, normals, colors, uvs,
-          [x + 1, y, z], [x + 1, y + 1, z], [x, y + 1, z], [x, y, z],
-          [0, 0, -1], uv, r, g, b);
-      // Top
-      this._addQuad(positions, normals, colors, uvs,
-          [x, y + 1, z + t], [x, y + 1, z], [x + 1, y + 1, z], [x + 1, y + 1, z + t],
-          [0, 1, 0], uv, r, g, b);
-      // Bottom
-      this._addQuad(positions, normals, colors, uvs,
-          [x, y, z], [x, y, z + t], [x + 1, y, z + t], [x + 1, y, z],
-          [0, -1, 0], uv, r, g, b);
-      // Right (+x)
-      this._addQuad(positions, normals, colors, uvs,
-          [x + 1, y, z + t], [x + 1, y + 1, z + t], [x + 1, y + 1, z], [x + 1, y, z],
-          [1, 0, 0], uv, r, g, b);
-      // Left (-x)
-      this._addQuad(positions, normals, colors, uvs,
-          [x, y, z], [x, y + 1, z], [x, y + 1, z + t], [x, y, z + t],
-          [-1, 0, 0], uv, r, g, b);
+      if (isOpen) {
+          // Open door: thin slab on the -x edge (rotated 90°)
+          // Front (+x)
+          this._addQuad(positions, normals, colors, uvs,
+              [x + t, y, z], [x + t, y + 1, z], [x + t, y + 1, z + 1], [x + t, y, z + 1],
+              [1, 0, 0], uv, r, g, b);
+          // Back (-x)
+          this._addQuad(positions, normals, colors, uvs,
+              [x, y, z + 1], [x, y + 1, z + 1], [x, y + 1, z], [x, y, z],
+              [-1, 0, 0], uv, r, g, b);
+          // Top
+          this._addQuad(positions, normals, colors, uvs,
+              [x, y + 1, z + 1], [x + t, y + 1, z + 1], [x + t, y + 1, z], [x, y + 1, z],
+              [0, 1, 0], uv, r, g, b);
+          // Bottom
+          this._addQuad(positions, normals, colors, uvs,
+              [x, y, z], [x + t, y, z], [x + t, y, z + 1], [x, y, z + 1],
+              [0, -1, 0], uv, r, g, b);
+          // Front face (+z)
+          this._addQuad(positions, normals, colors, uvs,
+              [x, y, z + 1], [x, y + 1, z + 1], [x + t, y + 1, z + 1], [x + t, y, z + 1],
+              [0, 0, 1], uv, r, g, b);
+          // Back face (-z)
+          this._addQuad(positions, normals, colors, uvs,
+              [x + t, y, z], [x + t, y + 1, z], [x, y + 1, z], [x, y, z],
+              [0, 0, -1], uv, r, g, b);
+      } else {
+          // Closed door: thin slab on the -z edge
+          // Front (+z)
+          this._addQuad(positions, normals, colors, uvs,
+              [x, y, z + t], [x, y + 1, z + t], [x + 1, y + 1, z + t], [x + 1, y, z + t],
+              [0, 0, 1], uv, r, g, b);
+          // Back (-z)
+          this._addQuad(positions, normals, colors, uvs,
+              [x + 1, y, z], [x + 1, y + 1, z], [x, y + 1, z], [x, y, z],
+              [0, 0, -1], uv, r, g, b);
+          // Top
+          this._addQuad(positions, normals, colors, uvs,
+              [x, y + 1, z + t], [x, y + 1, z], [x + 1, y + 1, z], [x + 1, y + 1, z + t],
+              [0, 1, 0], uv, r, g, b);
+          // Bottom
+          this._addQuad(positions, normals, colors, uvs,
+              [x, y, z], [x, y, z + t], [x + 1, y, z + t], [x + 1, y, z],
+              [0, -1, 0], uv, r, g, b);
+          // Right (+x)
+          this._addQuad(positions, normals, colors, uvs,
+              [x + 1, y, z + t], [x + 1, y + 1, z + t], [x + 1, y + 1, z], [x + 1, y, z],
+              [1, 0, 0], uv, r, g, b);
+          // Left (-x)
+          this._addQuad(positions, normals, colors, uvs,
+              [x, y, z], [x, y + 1, z], [x, y + 1, z + t], [x, y, z + t],
+              [-1, 0, 0], uv, r, g, b);
+      }
   }
 
   addTrapdoor(x, y, z, positions, normals, colors, uvs, color, blockId) {

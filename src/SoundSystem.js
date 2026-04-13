@@ -271,4 +271,36 @@ export class SoundSystem {
 
     source.start(this.ctx.currentTime);
   }
+
+  playFirework() {
+    if (!this.ensureContext()) return;
+
+    // Firework launch whoosh + crackle
+    const dur = 0.6;
+    const bufferSize = this.ctx.sampleRate * dur;
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+
+    for (let i = 0; i < bufferSize; i++) {
+      const t = i / this.ctx.sampleRate;
+      // Rising pitch whoosh
+      const freq = 200 + t * 800;
+      const whoosh = Math.sin(2 * Math.PI * freq * t) * 0.3;
+      // Crackle noise
+      const crackle = (Math.random() * 2 - 1) * 0.2 * Math.exp(-t * 3);
+      data[i] = (whoosh + crackle) * Math.exp(-t * 2);
+    }
+
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + dur);
+
+    source.connect(gain);
+    gain.connect(this.masterGain);
+
+    source.start(this.ctx.currentTime);
+  }
 }

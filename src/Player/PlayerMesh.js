@@ -78,6 +78,11 @@ export class PlayerMesh {
         this.mesh.add(this.rightArm);
         this.mesh.add(this.leftLeg);
         this.mesh.add(this.rightLeg);
+
+        // Elytra wings (hidden by default)
+        this.elytraVisible = false;
+        this.elytraGliding = false;
+        this.createElytra();
         
         // Add to scene? No, let the caller add it.
     }
@@ -293,6 +298,49 @@ export class PlayerMesh {
         this.head.rotation.y = headLocalYaw;
         this.head.rotation.x = cameraPitch;
 
+        // Elytra animation
+        if (this.elytraVisible) {
+            if (this.elytraGliding) {
+                // When gliding: wings spread out, body tilted forward
+                // Body pitch follows camera pitch for gliding pose
+                this.body.rotation.x = THREE.MathUtils.lerp(this.body.rotation.x, -cameraPitch + Math.PI / 6, deltaTime * 5);
+                
+                // Wings spread during glide
+                const targetWingAngle = Math.PI / 6; // ~30 degrees spread
+                this.leftWing.rotation.z = THREE.MathUtils.lerp(this.leftWing.rotation.z, targetWingAngle, deltaTime * 5);
+                this.rightWing.rotation.z = THREE.MathUtils.lerp(this.rightWing.rotation.z, -targetWingAngle, deltaTime * 5);
+                
+                // Subtle wing flutter
+                const flutter = Math.sin(performance.now() / 200) * 0.05;
+                this.leftWing.rotation.z += flutter;
+                this.rightWing.rotation.z -= flutter;
+
+                // Arms back during gliding
+                this.leftArm.rotation.x = THREE.MathUtils.lerp(this.leftArm.rotation.x, 0.3, deltaTime * 5);
+                this.rightArm.rotation.x = THREE.MathUtils.lerp(this.rightArm.rotation.x, 0.3, deltaTime * 5);
+                this.leftArm.rotation.z = THREE.MathUtils.lerp(this.leftArm.rotation.z, 0.5, deltaTime * 5);
+                this.rightArm.rotation.z = THREE.MathUtils.lerp(this.rightArm.rotation.z, -0.5, deltaTime * 5);
+
+                // Legs together and back
+                this.leftLeg.rotation.x = THREE.MathUtils.lerp(this.leftLeg.rotation.x, 0.2, deltaTime * 5);
+                this.rightLeg.rotation.x = THREE.MathUtils.lerp(this.rightLeg.rotation.x, 0.2, deltaTime * 5);
+                return; // Skip normal walk animation
+            } else {
+                // Wings folded on back when not gliding
+                this.leftWing.rotation.z = THREE.MathUtils.lerp(this.leftWing.rotation.z, Math.PI / 16, deltaTime * 8);
+                this.rightWing.rotation.z = THREE.MathUtils.lerp(this.rightWing.rotation.z, -Math.PI / 16, deltaTime * 8);
+                // Reset body pitch
+                this.body.rotation.x = THREE.MathUtils.lerp(this.body.rotation.x, 0, deltaTime * 8);
+                // Reset arm z rotation
+                this.leftArm.rotation.z = THREE.MathUtils.lerp(this.leftArm.rotation.z, 0, deltaTime * 8);
+                this.rightArm.rotation.z = THREE.MathUtils.lerp(this.rightArm.rotation.z, 0, deltaTime * 8);
+            }
+        } else {
+            this.body.rotation.x = THREE.MathUtils.lerp(this.body.rotation.x, 0, deltaTime * 8);
+            this.leftArm.rotation.z = THREE.MathUtils.lerp(this.leftArm.rotation.z, 0, deltaTime * 8);
+            this.rightArm.rotation.z = THREE.MathUtils.lerp(this.rightArm.rotation.z, 0, deltaTime * 8);
+        }
+
         // Animation
         if (isMoving) {
             const speed = isSprinting ? 20 : 10;
@@ -312,5 +360,53 @@ export class PlayerMesh {
             this.leftLeg.rotation.x = THREE.MathUtils.lerp(this.leftLeg.rotation.x, 0, deltaTime * 10);
             this.rightLeg.rotation.x = THREE.MathUtils.lerp(this.rightLeg.rotation.x, 0, deltaTime * 10);
         }
+    }
+
+    createElytra() {
+        const s = this.scale;
+
+        // Elytra wing material (grey/purple like Minecraft elytra)
+        this.elytraMaterial = new THREE.MeshLambertMaterial({
+            color: 0x8B7D8B,
+            transparent: true,
+            alphaTest: 0.5,
+            side: THREE.DoubleSide,
+        });
+
+        // Left wing — flat plane attached to back of body
+        // Each wing is roughly 10x20 pixels in Minecraft, attached at shoulder
+        const wingGeo = new THREE.PlaneGeometry(10 * s, 16 * s);
+        // Pivot at the inner edge (top)
+        wingGeo.translate(5 * s, -8 * s, 0);
+
+        this.leftWing = new THREE.Mesh(wingGeo, this.elytraMaterial);
+        this.leftWing.position.set(0, 24 * s, 2.5 * s); // Behind body at shoulder height
+        this.leftWing.rotation.y = Math.PI / 2;
+        this.leftWing.rotation.z = Math.PI / 16; // Slightly angled out
+
+        // Right wing (mirrored)
+        const wingGeoR = new THREE.PlaneGeometry(10 * s, 16 * s);
+        wingGeoR.translate(-5 * s, -8 * s, 0);
+
+        this.rightWing = new THREE.Mesh(wingGeoR, this.elytraMaterial);
+        this.rightWing.position.set(0, 24 * s, 2.5 * s);
+        this.rightWing.rotation.y = Math.PI / 2;
+        this.rightWing.rotation.z = -Math.PI / 16;
+
+        this.mesh.add(this.leftWing);
+        this.mesh.add(this.rightWing);
+
+        this.leftWing.visible = false;
+        this.rightWing.visible = false;
+    }
+
+    setElytraVisible(visible) {
+        this.elytraVisible = visible;
+        this.leftWing.visible = visible;
+        this.rightWing.visible = visible;
+    }
+
+    setElytraGliding(gliding) {
+        this.elytraGliding = gliding;
     }
 }

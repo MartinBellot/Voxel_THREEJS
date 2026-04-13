@@ -8,7 +8,7 @@ import { TextureManager } from './Utils/TextureManager.js';
 import { NetworkManager } from './NetworkManager.js';
 import { PauseMenu } from './PauseMenu.js';
 import { DroppedItem } from './World/DroppedItem.js';
-import { BlockType } from './World/Block.js';
+import { BlockType, isTorchBlock } from './World/Block.js';
 import { ItemDefinitions } from './Item.js';
 import { getEnchantmentBonus } from './EnchantingSystem.js';
 import { CraftingUI } from './CraftingUI.js';
@@ -48,6 +48,7 @@ export class Game {
     this._sunsetColor = new THREE.Color(0xFD5E53);
     this._nightColor = new THREE.Color(0x050510);
     this._skyColor = new THREE.Color();
+    this._waterFogColor = new THREE.Color(0x3388aa);
     this._dayCloudColor = new THREE.Color(0xffffff);
     this._sunsetCloudColor = new THREE.Color(0xFFD700);
     this._nightCloudColor = new THREE.Color(0x1a1a2e);
@@ -139,55 +140,90 @@ export class Game {
   }
 
   setupTorchLights() {
-    // Pool of PointLights for nearby torches (max 6 for performance)
     this.torchLightPool = [];
-    this.torchLightCount = 6;
-    this._lastTorchUpdate = 0;
+    this.torchLightCount = 8;
+    this._lastTorchSearch = 0;
+    this._torchTargets = []; // Target positions for smooth interpolation
     for (let i = 0; i < this.torchLightCount; i++) {
       const light = new THREE.PointLight(0xFF9933, 1.2, 12, 2);
       light.visible = false;
       this.scene.add(light);
       this.torchLightPool.push(light);
+      this._torchTargets.push({ x: 0, y: 0, z: 0, active: false, intensity: 0 });
     }
   }
 
   updateTorchLights() {
     if (!this.player || !this.world) return;
     const now = performance.now();
-    if (now - this._lastTorchUpdate < 500) return; // Update every 500ms
-    this._lastTorchUpdate = now;
 
-    const px = Math.floor(this.player.camera.position.x);
-    const py = Math.floor(this.player.camera.position.y);
-    const pz = Math.floor(this.player.camera.position.z);
-    const searchRadius = 10;
+    // Search for torches every 300ms (target assignment only)
+    if (now - this._lastTorchSearch > 300) {
+      this._lastTorchSearch = now;
 
-    // Find nearby torch blocks
-    const torches = [];
-    for (let dx = -searchRadius; dx <= searchRadius; dx++) {
-      for (let dy = -searchRadius; dy <= searchRadius; dy++) {
-        for (let dz = -searchRadius; dz <= searchRadius; dz++) {
-          const bx = px + dx, by = py + dy, bz = pz + dz;
-          const block = this.world.getBlock(bx, by, bz);
-          if (block === BlockType.TORCH || block === BlockType.GLOWSTONE ||
-              block === BlockType.SEA_LANTERN || block === BlockType.JACK_O_LANTERN) {
+      const px = Math.floor(this.player.camera.position.x);
+      const py = Math.floor(this.player.camera.position.y);
+      const pz = Math.floor(this.player.camera.position.z);
+      const searchRadius = 12;
+
+      const torches = [];
+      for (let dx = -searchRadius; dx <= searchRadius; dx++) {
+        for (let dy = -searchRadius; dy <= searchRadius; dy++) {
+          for (let dz = -searchRadius; dz <= searchRadius; dz++) {
             const distSq = dx * dx + dy * dy + dz * dz;
-            torches.push({ x: bx + 0.5, y: by + 0.7, z: bz + 0.5, distSq });
+            if (distSq > searchRadius * searchRadius) continue;
+            const bx = px + dx, by = py + dy, bz = pz + dz;
+            const block = this.world.getBlock(bx, by, bz);
+            if (isTorchBlock(block) || block === BlockType.GLOWSTONE ||
+                block === BlockType.SEA_LANTERN || block === BlockType.JACK_O_LANTERN) {
+              torches.push({ x: bx + 0.5, y: by + 0.7, z: bz + 0.5, distSq });
+            }
           }
+        }
+      }
+
+      torches.sort((a, b) => a.distSq - b.distSq);
+
+      for (let i = 0; i < this.torchLightCount; i++) {
+        const target = this._torchTargets[i];
+        if (i < torches.length) {
+          target.x = torches[i].x;
+          target.y = torches[i].y;
+          target.z = torches[i].z;
+          target.active = true;
+        } else {
+          target.active = false;
         }
       }
     }
 
-    // Sort by distance, take closest N
-    torches.sort((a, b) => a.distSq - b.distSq);
-
+    // Smooth interpolation every frame
+    const lerpFactor = 0.15;
     for (let i = 0; i < this.torchLightCount; i++) {
       const light = this.torchLightPool[i];
-      if (i < torches.length) {
-        light.position.set(torches[i].x, torches[i].y, torches[i].z);
-        light.visible = true;
+      const target = this._torchTargets[i];
+
+      if (target.active) {
+        if (!light.visible) {
+          // First appearance: snap to position, fade in
+          light.position.set(target.x, target.y, target.z);
+          light.visible = true;
+          target.intensity = 0;
+        } else {
+          // Smooth move to new target position
+          light.position.x += (target.x - light.position.x) * lerpFactor;
+          light.position.y += (target.y - light.position.y) * lerpFactor;
+          light.position.z += (target.z - light.position.z) * lerpFactor;
+        }
+        target.intensity = Math.min(1.2, target.intensity + 0.08);
+        light.intensity = target.intensity;
       } else {
-        light.visible = false;
+        // Fade out smoothly
+        target.intensity = Math.max(0, target.intensity - 0.08);
+        light.intensity = target.intensity;
+        if (target.intensity <= 0) {
+          light.visible = false;
+        }
       }
     }
   }
@@ -452,6 +488,24 @@ export class Game {
     
     this.scene.background.copy(this._skyColor);
     this.scene.fog.color.copy(this._skyColor);
+
+    // Underwater fog effect
+    if (this.player && this.player.physics && this.player.physics.waterSubmergeLevel >= 3) {
+      this.scene.fog.near = 0;
+      this.scene.fog.far = 24;
+      this.scene.fog.color.setHex(0x1a4a6b);
+      this.scene.background.setHex(0x1a4a6b);
+    } else if (this.player && this.player.physics && this.player.physics.inWater) {
+      this.scene.fog.near = 10;
+      this.scene.fog.far = 60;
+      this.scene.fog.color.lerp(this._waterFogColor, 0.3);
+      this.scene.background.lerp(this._waterFogColor, 0.3);
+    } else {
+      const fogFar = this.world.farRenderDistance * this.world.chunkSize;
+      const fogNear = Math.max(0, (this.world.renderDistance - 1) * this.world.chunkSize);
+      this.scene.fog.near = fogNear;
+      this.scene.fog.far = fogFar;
+    }
     
     // Dynamic Light Intensity & Color
     this.sunLight.intensity = Math.max(0, t * 1.2);

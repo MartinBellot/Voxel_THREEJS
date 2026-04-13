@@ -265,6 +265,20 @@ export const BlockType = {
   OAK_FENCE_GATE: 263,
   SPRUCE_FENCE_GATE: 264,
   BIRCH_FENCE_GATE: 265,
+
+  // Open Doors (266-271)
+  OAK_DOOR_BOTTOM_OPEN: 266,
+  OAK_DOOR_TOP_OPEN: 267,
+  SPRUCE_DOOR_BOTTOM_OPEN: 268,
+  SPRUCE_DOOR_TOP_OPEN: 269,
+  IRON_DOOR_BOTTOM_OPEN: 270,
+  IRON_DOOR_TOP_OPEN: 271,
+
+  // Wall torches (facing direction = where the flame points)
+  TORCH_WALL_NORTH: 272,
+  TORCH_WALL_SOUTH: 273,
+  TORCH_WALL_EAST: 274,
+  TORCH_WALL_WEST: 275,
 };
 
 export const BlockModels = {
@@ -458,7 +472,11 @@ export const BlockDefinitions = {
   // Plants & special
   [BlockType.TALL_GRASS]: { color: 0x00AA00, visible: true, model: BlockModels.GRASS, transparent: true, opacity: 1.0, textures: { all: 'grass_block_tint.png' }, hardness: 0.0, material: BlockMaterial.PLANT },
   [BlockType.CACTUS]: { color: 0x66BB6A, visible: true, model: BlockModels.CACTUS, textures: { top: 'cactus_top.png', side: 'cactus_side.png', bottom: 'cactus_top.png' }, hardness: 0.4, material: BlockMaterial.PLANT, damage: 1 },
-  [BlockType.TORCH]: { color: 0xFFD700, visible: true, light: 14, transparent: true, model: BlockModels.TORCH, hardness: 0.0, material: BlockMaterial.PLANT },
+  [BlockType.TORCH]: { color: 0xFFD700, visible: true, light: 14, transparent: true, model: BlockModels.TORCH, textures: { all: 'torch.png' }, hardness: 0.0, material: BlockMaterial.PLANT },
+  [BlockType.TORCH_WALL_NORTH]: { color: 0xFFD700, visible: true, light: 14, transparent: true, model: BlockModels.TORCH, textures: { all: 'torch.png' }, hardness: 0.0, material: BlockMaterial.PLANT, wallTorch: 'north' },
+  [BlockType.TORCH_WALL_SOUTH]: { color: 0xFFD700, visible: true, light: 14, transparent: true, model: BlockModels.TORCH, textures: { all: 'torch.png' }, hardness: 0.0, material: BlockMaterial.PLANT, wallTorch: 'south' },
+  [BlockType.TORCH_WALL_EAST]: { color: 0xFFD700, visible: true, light: 14, transparent: true, model: BlockModels.TORCH, textures: { all: 'torch.png' }, hardness: 0.0, material: BlockMaterial.PLANT, wallTorch: 'east' },
+  [BlockType.TORCH_WALL_WEST]: { color: 0xFFD700, visible: true, light: 14, transparent: true, model: BlockModels.TORCH, textures: { all: 'torch.png' }, hardness: 0.0, material: BlockMaterial.PLANT, wallTorch: 'west' },
   [BlockType.LANTERN]: { color: 0x50321E, visible: true, model: BlockModels.CUBE, textures: { all: 'lantern.png' }, hardness: 3.5, material: BlockMaterial.METAL, miningLevel: 1, light: 15 },
   [BlockType.LADDER]: { color: 0x826437, visible: true, model: BlockModels.LADDER, transparent: true, textures: { all: 'ladder.png' }, hardness: 0.4, material: BlockMaterial.WOOD, climbable: true },
   [BlockType.PUMPKIN]: { color: 0xD28C1E, visible: true, model: BlockModels.CUBE, textures: { top: 'pumpkin_top.png', side: 'pumpkin_side.png', bottom: 'pumpkin_top.png' }, hardness: 1.0, material: BlockMaterial.PLANT },
@@ -546,13 +564,21 @@ export const BlockDefinitions = {
   [BlockType.DARK_OAK_FENCE]: { color: 0x3E2912, visible: true, model: BlockModels.FENCE, textures: { all: 'dark_oak_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD, transparent: true },
   [BlockType.NETHER_BRICK_FENCE]: { color: 0x2C1016, visible: true, model: BlockModels.FENCE, textures: { all: 'nether_bricks.png' }, hardness: 2.0, material: BlockMaterial.STONE, miningLevel: 1, transparent: true },
 
-  // Doors
-  [BlockType.OAK_DOOR_BOTTOM]: { color: 0xBC9862, visible: true, model: BlockModels.DOOR, textures: { all: 'oak_planks.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isDoor: true, isBottom: true },
-  [BlockType.OAK_DOOR_TOP]: { color: 0xBC9862, visible: true, model: BlockModels.DOOR, textures: { all: 'oak_planks.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isDoor: true, isBottom: false },
-  [BlockType.SPRUCE_DOOR_BOTTOM]: { color: 0x6B5032, visible: true, model: BlockModels.DOOR, textures: { all: 'spruce_planks.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isDoor: true, isBottom: true },
-  [BlockType.SPRUCE_DOOR_TOP]: { color: 0x6B5032, visible: true, model: BlockModels.DOOR, textures: { all: 'spruce_planks.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isDoor: true, isBottom: false },
-  [BlockType.IRON_DOOR_BOTTOM]: { color: 0xC8C8C8, visible: true, model: BlockModels.DOOR, textures: { all: 'iron_block.png' }, hardness: 5.0, material: BlockMaterial.METAL, miningLevel: 1, transparent: true, interactive: true, isDoor: true, isBottom: true },
-  [BlockType.IRON_DOOR_TOP]: { color: 0xC8C8C8, visible: true, model: BlockModels.DOOR, textures: { all: 'iron_block.png' }, hardness: 5.0, material: BlockMaterial.METAL, miningLevel: 1, transparent: true, interactive: true, isDoor: true, isBottom: false },
+  // Doors (closed)
+  [BlockType.OAK_DOOR_BOTTOM]: { color: 0xBC9862, visible: true, model: BlockModels.DOOR, textures: { all: 'oak_door_bottom.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isDoor: true, isBottom: true, doorOpen: false },
+  [BlockType.OAK_DOOR_TOP]: { color: 0xBC9862, visible: true, model: BlockModels.DOOR, textures: { all: 'oak_door_top.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isDoor: true, isBottom: false, doorOpen: false },
+  [BlockType.SPRUCE_DOOR_BOTTOM]: { color: 0x6B5032, visible: true, model: BlockModels.DOOR, textures: { all: 'spruce_door_bottom.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isDoor: true, isBottom: true, doorOpen: false },
+  [BlockType.SPRUCE_DOOR_TOP]: { color: 0x6B5032, visible: true, model: BlockModels.DOOR, textures: { all: 'spruce_door_top.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isDoor: true, isBottom: false, doorOpen: false },
+  [BlockType.IRON_DOOR_BOTTOM]: { color: 0xC8C8C8, visible: true, model: BlockModels.DOOR, textures: { all: 'iron_door_bottom.png' }, hardness: 5.0, material: BlockMaterial.METAL, miningLevel: 1, transparent: true, interactive: true, isDoor: true, isBottom: true, doorOpen: false },
+  [BlockType.IRON_DOOR_TOP]: { color: 0xC8C8C8, visible: true, model: BlockModels.DOOR, textures: { all: 'iron_door_top.png' }, hardness: 5.0, material: BlockMaterial.METAL, miningLevel: 1, transparent: true, interactive: true, isDoor: true, isBottom: false, doorOpen: false },
+
+  // Doors (open)
+  [BlockType.OAK_DOOR_BOTTOM_OPEN]: { color: 0xBC9862, visible: true, model: BlockModels.DOOR, textures: { all: 'oak_door_bottom.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isDoor: true, isBottom: true, doorOpen: true },
+  [BlockType.OAK_DOOR_TOP_OPEN]: { color: 0xBC9862, visible: true, model: BlockModels.DOOR, textures: { all: 'oak_door_top.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isDoor: true, isBottom: false, doorOpen: true },
+  [BlockType.SPRUCE_DOOR_BOTTOM_OPEN]: { color: 0x6B5032, visible: true, model: BlockModels.DOOR, textures: { all: 'spruce_door_bottom.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isDoor: true, isBottom: true, doorOpen: true },
+  [BlockType.SPRUCE_DOOR_TOP_OPEN]: { color: 0x6B5032, visible: true, model: BlockModels.DOOR, textures: { all: 'spruce_door_top.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isDoor: true, isBottom: false, doorOpen: true },
+  [BlockType.IRON_DOOR_BOTTOM_OPEN]: { color: 0xC8C8C8, visible: true, model: BlockModels.DOOR, textures: { all: 'iron_door_bottom.png' }, hardness: 5.0, material: BlockMaterial.METAL, miningLevel: 1, transparent: true, interactive: true, isDoor: true, isBottom: true, doorOpen: true },
+  [BlockType.IRON_DOOR_TOP_OPEN]: { color: 0xC8C8C8, visible: true, model: BlockModels.DOOR, textures: { all: 'iron_door_top.png' }, hardness: 5.0, material: BlockMaterial.METAL, miningLevel: 1, transparent: true, interactive: true, isDoor: true, isBottom: false, doorOpen: true },
 
   // Trapdoors
   [BlockType.OAK_TRAPDOOR]: { color: 0xBC9862, visible: true, model: BlockModels.TRAPDOOR, textures: { all: 'oak_planks.png' }, hardness: 3.0, material: BlockMaterial.WOOD, transparent: true, interactive: true, isTrapdoor: true },
@@ -608,6 +634,21 @@ export const BlockDrops = {
   [BlockType.BEETROOT_STAGE_1]: null,
   [BlockType.BEETROOT_STAGE_2]: null,
   [BlockType.BEETROOT_STAGE_3]: 'BEETROOT',
+  // Door drops: always drop the closed bottom variant
+  [BlockType.OAK_DOOR_TOP]: 'OAK_DOOR_BOTTOM',
+  [BlockType.OAK_DOOR_TOP_OPEN]: 'OAK_DOOR_BOTTOM',
+  [BlockType.OAK_DOOR_BOTTOM_OPEN]: 'OAK_DOOR_BOTTOM',
+  [BlockType.SPRUCE_DOOR_TOP]: 'SPRUCE_DOOR_BOTTOM',
+  [BlockType.SPRUCE_DOOR_TOP_OPEN]: 'SPRUCE_DOOR_BOTTOM',
+  [BlockType.SPRUCE_DOOR_BOTTOM_OPEN]: 'SPRUCE_DOOR_BOTTOM',
+  [BlockType.IRON_DOOR_TOP]: 'IRON_DOOR_BOTTOM',
+  [BlockType.IRON_DOOR_TOP_OPEN]: 'IRON_DOOR_BOTTOM',
+  [BlockType.IRON_DOOR_BOTTOM_OPEN]: 'IRON_DOOR_BOTTOM',
+  // Wall torches drop regular torch item
+  [BlockType.TORCH_WALL_NORTH]: 'TORCH',
+  [BlockType.TORCH_WALL_SOUTH]: 'TORCH',
+  [BlockType.TORCH_WALL_EAST]: 'TORCH',
+  [BlockType.TORCH_WALL_WEST]: 'TORCH',
 };
 
 export function isCrop(blockType) {
@@ -618,6 +659,7 @@ export function isCrop(blockType) {
 export function isTransparent(blockType) {
   if (blockType === BlockType.AIR || blockType === BlockType.WATER || blockType === BlockType.MAGIC_WATER) return true;
   if (blockType === BlockType.TALL_GRASS || blockType === BlockType.TORCH || blockType === BlockType.LADDER) return true;
+  if (blockType >= BlockType.TORCH_WALL_NORTH && blockType <= BlockType.TORCH_WALL_WEST) return true;
   if (isCrop(blockType)) return true;
   const def = BlockDefinitions[blockType];
   return def ? !!def.transparent : true;
@@ -631,6 +673,30 @@ export function isSolid(blockType) {
   if (blockType === BlockType.AIR) return false;
   if (isLiquid(blockType)) return false;
   if (blockType === BlockType.TALL_GRASS || blockType === BlockType.TORCH || blockType === BlockType.LADDER) return false;
+  if (blockType >= BlockType.TORCH_WALL_NORTH && blockType <= BlockType.TORCH_WALL_WEST) return false;
   if (isCrop(blockType)) return false;
+  const def = BlockDefinitions[blockType];
+  if (def && def.isDoor && def.doorOpen) return false;
   return true;
 }
+
+export function isTorchBlock(blockType) {
+  return blockType === BlockType.TORCH ||
+    (blockType >= BlockType.TORCH_WALL_NORTH && blockType <= BlockType.TORCH_WALL_WEST);
+}
+
+// Door state toggle helpers
+export const DoorToggleMap = {
+  [BlockType.OAK_DOOR_BOTTOM]: BlockType.OAK_DOOR_BOTTOM_OPEN,
+  [BlockType.OAK_DOOR_TOP]: BlockType.OAK_DOOR_TOP_OPEN,
+  [BlockType.SPRUCE_DOOR_BOTTOM]: BlockType.SPRUCE_DOOR_BOTTOM_OPEN,
+  [BlockType.SPRUCE_DOOR_TOP]: BlockType.SPRUCE_DOOR_TOP_OPEN,
+  [BlockType.IRON_DOOR_BOTTOM]: BlockType.IRON_DOOR_BOTTOM_OPEN,
+  [BlockType.IRON_DOOR_TOP]: BlockType.IRON_DOOR_TOP_OPEN,
+  [BlockType.OAK_DOOR_BOTTOM_OPEN]: BlockType.OAK_DOOR_BOTTOM,
+  [BlockType.OAK_DOOR_TOP_OPEN]: BlockType.OAK_DOOR_TOP,
+  [BlockType.SPRUCE_DOOR_BOTTOM_OPEN]: BlockType.SPRUCE_DOOR_BOTTOM,
+  [BlockType.SPRUCE_DOOR_TOP_OPEN]: BlockType.SPRUCE_DOOR_TOP,
+  [BlockType.IRON_DOOR_BOTTOM_OPEN]: BlockType.IRON_DOOR_BOTTOM,
+  [BlockType.IRON_DOOR_TOP_OPEN]: BlockType.IRON_DOOR_TOP,
+};

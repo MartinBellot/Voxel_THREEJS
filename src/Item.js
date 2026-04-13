@@ -196,6 +196,10 @@ export const ItemType = {
   NAME_TAG: 712,
   TORCH_ITEM: 100,
 
+  // Special equipment
+  ELYTRA: 750,
+  FIREWORK_ROCKET: 751,
+
   // Spawn eggs
   SPAWN_PIG: 800,
   SPAWN_CHICKEN: 801,
@@ -455,9 +459,9 @@ export const ItemDefinitions = {
   [ItemType.NETHER_BRICK_FENCE]: blockItem(BlockType.NETHER_BRICK_FENCE, 'Nether Brick Fence'),
 
   // Doors
-  [ItemType.OAK_DOOR_BOTTOM]: blockItem(BlockType.OAK_DOOR_BOTTOM, 'Oak Door'),
-  [ItemType.SPRUCE_DOOR_BOTTOM]: blockItem(BlockType.SPRUCE_DOOR_BOTTOM, 'Spruce Door'),
-  [ItemType.IRON_DOOR_BOTTOM]: blockItem(BlockType.IRON_DOOR_BOTTOM, 'Iron Door'),
+  [ItemType.OAK_DOOR_BOTTOM]: { name: 'Oak Door', blockType: BlockType.OAK_DOOR_BOTTOM, isPlaceable: true, category: ItemCategory.BLOCK, stackSize: 64, texture: 'oak_door.png' },
+  [ItemType.SPRUCE_DOOR_BOTTOM]: { name: 'Spruce Door', blockType: BlockType.SPRUCE_DOOR_BOTTOM, isPlaceable: true, category: ItemCategory.BLOCK, stackSize: 64, texture: 'spruce_door.png' },
+  [ItemType.IRON_DOOR_BOTTOM]: { name: 'Iron Door', blockType: BlockType.IRON_DOOR_BOTTOM, isPlaceable: true, category: ItemCategory.BLOCK, stackSize: 64, texture: 'iron_door.png' },
 
   // Trapdoors
   [ItemType.OAK_TRAPDOOR]: blockItem(BlockType.OAK_TRAPDOOR, 'Oak Trapdoor'),
@@ -631,6 +635,20 @@ export const ItemDefinitions = {
   [ItemType.SHEARS]: { name: 'Shears', isPlaceable: false, category: ItemCategory.TOOL, texture: 'shears.png', stackSize: 1, durability: 238 },
   [ItemType.LEAD]: { name: 'Lead', isPlaceable: false, category: ItemCategory.MISC, texture: 'lead.png', stackSize: 64 },
   [ItemType.NAME_TAG]: { name: 'Name Tag', isPlaceable: false, category: ItemCategory.MISC, texture: 'name_tag.png', stackSize: 64 },
+
+  // Special equipment
+  [ItemType.ELYTRA]: {
+    name: 'Elytra', isPlaceable: false, category: ItemCategory.ARMOR,
+    texture: 'elytra.png', stackSize: 1,
+    armorSlot: 'chestplate', armorMaterial: 'ELYTRA',
+    armorPoints: 0, durability: 432,
+    isElytra: true,
+  },
+  [ItemType.FIREWORK_ROCKET]: {
+    name: 'Firework Rocket', isPlaceable: false, category: ItemCategory.MISC,
+    texture: 'firework_rocket.png', stackSize: 64,
+    isFireworkRocket: true,
+  },
 
   // Spawn eggs
   [ItemType.SPAWN_PIG]: { name: 'Spawn Pig', isPlaceable: false, category: ItemCategory.MISC, texture: '../entities/pig.png', stackSize: 64 },

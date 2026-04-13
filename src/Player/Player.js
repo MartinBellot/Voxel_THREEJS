@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import nipplejs from 'nipplejs';
 import { Physics } from './Physics.js';
-import { BlockType, BlockDefinitions, BlockDrops, isCrop } from '../World/Block.js';
+import { BlockType, BlockDefinitions, BlockDrops, isCrop, isSolid, isLiquid, isTorchBlock, DoorToggleMap } from '../World/Block.js';
 import { Inventory } from '../Inventory.js';
 import { InventoryUI } from '../InventoryUI.js';
 import { ItemDefinitions, ItemType, ItemCategory } from '../Item.js';
@@ -41,6 +41,7 @@ export class Player {
     this.moveDown = false;
     this.isSprinting = false;
     this.canJump = false;
+    this.swimming = false;
     this.flyMode = false;
     this.lastSpacePressTime = 0;
     
@@ -422,6 +423,32 @@ export class Player {
     const deathScreen = document.getElementById('death-screen');
     if (deathScreen) deathScreen.style.display = 'none';
     this.controls.lock();
+  }
+
+  hasElytraEquipped() {
+    // Elytra goes in chestplate slot (37)
+    const chestItem = this.inventory.getItem(37);
+    if (!chestItem) return false;
+    const def = ItemDefinitions[chestItem.type];
+    return def && def.isElytra;
+  }
+
+  useFireworkRocket() {
+    if (!this.physics.isGliding) return;
+    // Consume one firework rocket
+    this.inventory.removeItem(this.inventory.selectedSlot, 1);
+    this.inventoryUI.updateHotbar();
+    // Apply boost for ~1.5 seconds (like Minecraft)
+    this.physics.applyFireworkBoost(1.5);
+    // Spawn particles at player position
+    if (this.game.particleSystem) {
+      const pos = this.camera.position;
+      this.game.particleSystem.spawnFireworkTrail(pos.x, pos.y - 1, pos.z);
+    }
+    // Sound
+    if (this.game.soundSystem) {
+      this.game.soundSystem.playFirework();
+    }
   }
 
   setupDeathScreen() {
@@ -853,6 +880,32 @@ export class Player {
     }
   }
 
+  breakUnsupportedTorches(x, y, z) {
+    // Check if breaking this block leaves any adjacent torch without support
+    const checks = [
+      // Floor torch above
+      { tx: x, ty: y + 1, tz: z, type: BlockType.TORCH },
+      // Wall torches on each side (torch is placed in adjacent air, attached to this block)
+      { tx: x + 1, ty: y, tz: z, type: BlockType.TORCH_WALL_EAST },
+      { tx: x - 1, ty: y, tz: z, type: BlockType.TORCH_WALL_WEST },
+      { tx: x, ty: y, tz: z + 1, type: BlockType.TORCH_WALL_SOUTH },
+      { tx: x, ty: y, tz: z - 1, type: BlockType.TORCH_WALL_NORTH },
+    ];
+
+    for (const check of checks) {
+      const block = this.game.world.getBlock(check.tx, check.ty, check.tz);
+      if (block === check.type) {
+        this.game.world.setBlock(check.tx, check.ty, check.tz, BlockType.AIR);
+        // Drop torch item
+        const item = new DroppedItem(this.game, check.tx, check.ty, check.tz, BlockType.TORCH);
+        this.game.droppedItems.push(item);
+        if (this.game.networkManager && this.game.networkManager.connected) {
+          this.game.networkManager.sendBlockUpdate(check.tx, check.ty, check.tz, BlockType.AIR);
+        }
+      }
+    }
+  }
+
   // setupUI removed - handled by InventoryUI
 
   setupMobileControls() {
@@ -897,6 +950,7 @@ export class Player {
             if (this.flyMode) {
                 this.moveUp = true;
             } else if (this.physics.inWater) {
+                this.swimming = true;
                 this.canJump = true;
             } else if (this.canJump) {
                 this.velocity.y = 9.0;
@@ -906,6 +960,8 @@ export class Player {
         btnJump.addEventListener('touchend', (e) => {
              e.preventDefault();
              this.moveUp = false;
+             this.swimming = false;
+             if (this.physics.inWater) this.canJump = false;
         });
     }
 
@@ -1047,6 +1103,11 @@ export class Player {
               }
               return;
             }
+            // Firework rocket while gliding
+            if (heldDef && heldDef.isFireworkRocket && this.physics.isGliding) {
+              this.useFireworkRocket();
+              return;
+            }
           }
           if (this.currentItemLogic) {
               this.currentItemLogic.onUseStart(this);
@@ -1178,16 +1239,26 @@ export class Player {
                   }
                 }
 
-              // Door interaction: toggle open/close by removing/swapping
+              // Door interaction: toggle open/close
               const clickedDef = BlockDefinitions[clickedBlock];
               if (clickedDef && clickedDef.isDoor) {
-                // Remove both door halves (toggle = remove for now)
-                if (clickedDef.isBottom) {
-                  this.game.world.setBlock(bx, by, bz, BlockType.AIR);
-                  this.game.world.setBlock(bx, by + 1, bz, BlockType.AIR);
-                } else {
-                  this.game.world.setBlock(bx, by, bz, BlockType.AIR);
-                  this.game.world.setBlock(bx, by - 1, bz, BlockType.AIR);
+                const toggledBlock = DoorToggleMap[clickedBlock];
+                if (toggledBlock !== undefined) {
+                  this.game.world.setBlock(bx, by, bz, toggledBlock);
+                  // Toggle the other half too
+                  if (clickedDef.isBottom) {
+                    const topBlock = this.game.world.getBlock(bx, by + 1, bz);
+                    const topToggled = DoorToggleMap[topBlock];
+                    if (topToggled !== undefined) {
+                      this.game.world.setBlock(bx, by + 1, bz, topToggled);
+                    }
+                  } else {
+                    const bottomBlock = this.game.world.getBlock(bx, by - 1, bz);
+                    const bottomToggled = DoorToggleMap[bottomBlock];
+                    if (bottomToggled !== undefined) {
+                      this.game.world.setBlock(bx, by - 1, bz, bottomToggled);
+                    }
+                  }
                 }
                 if (this.game.soundSystem) this.game.soundSystem.playBlockPlace('wood');
                 return;
@@ -1205,6 +1276,66 @@ export class Player {
                 this.game.world.setBlock(bx, by, bz, BlockType.AIR);
                 if (this.game.soundSystem) this.game.soundSystem.playBlockPlace('wood');
                 return;
+              }
+
+              // Bucket handling
+              if (held) {
+                // Empty bucket: collect water or lava
+                if (held.type === ItemType.BUCKET) {
+                  const waterHit = this.getWaterIntersection();
+                  if (waterHit) {
+                    const wp = waterHit.point.clone().add(waterHit.face.normal.clone().multiplyScalar(-0.5));
+                    const wx = Math.floor(wp.x);
+                    const wy = Math.floor(wp.y);
+                    const wz = Math.floor(wp.z);
+                    const waterBlock = this.game.world.getBlock(wx, wy, wz);
+                    if (waterBlock === BlockType.WATER || waterBlock === BlockType.MAGIC_WATER) {
+                      this.game.world.setBlock(wx, wy, wz, BlockType.AIR);
+                      this.inventory.setItem(this.inventory.selectedSlot, ItemType.WATER_BUCKET, 1);
+                      this.inventoryUI.updateHotbar();
+                      if (this.game.soundSystem) this.game.soundSystem.playBlockPlace('stone');
+                      return;
+                    } else if (waterBlock === BlockType.LAVA) {
+                      this.game.world.setBlock(wx, wy, wz, BlockType.AIR);
+                      this.inventory.setItem(this.inventory.selectedSlot, ItemType.LAVA_BUCKET, 1);
+                      this.inventoryUI.updateHotbar();
+                      if (this.game.soundSystem) this.game.soundSystem.playBlockPlace('stone');
+                      return;
+                    }
+                  }
+                }
+
+                // Water bucket: place water source
+                if (held.type === ItemType.WATER_BUCKET) {
+                  const placeTarget = intersection.point.clone().add(intersection.face.normal.clone().multiplyScalar(0.5));
+                  const px = Math.floor(placeTarget.x);
+                  const py = Math.floor(placeTarget.y);
+                  const pz = Math.floor(placeTarget.z);
+                  const existing = this.game.world.getBlock(px, py, pz);
+                  if (existing === BlockType.AIR || isLiquid(existing)) {
+                    this.game.world.setBlock(px, py, pz, BlockType.WATER);
+                    this.inventory.setItem(this.inventory.selectedSlot, ItemType.BUCKET, 1);
+                    this.inventoryUI.updateHotbar();
+                    if (this.game.soundSystem) this.game.soundSystem.playBlockPlace('stone');
+                  }
+                  return;
+                }
+
+                // Lava bucket: place lava source
+                if (held.type === ItemType.LAVA_BUCKET) {
+                  const placeTarget = intersection.point.clone().add(intersection.face.normal.clone().multiplyScalar(0.5));
+                  const px = Math.floor(placeTarget.x);
+                  const py = Math.floor(placeTarget.y);
+                  const pz = Math.floor(placeTarget.z);
+                  const existing = this.game.world.getBlock(px, py, pz);
+                  if (existing === BlockType.AIR || isLiquid(existing)) {
+                    this.game.world.setBlock(px, py, pz, BlockType.LAVA);
+                    this.inventory.setItem(this.inventory.selectedSlot, ItemType.BUCKET, 1);
+                    this.inventoryUI.updateHotbar();
+                    if (this.game.soundSystem) this.game.soundSystem.playBlockPlace('stone');
+                  }
+                  return;
+                }
               }
               }
 
@@ -1284,6 +1415,8 @@ export class Player {
             this.lastSpacePressTime = 0;
             if (this.flyMode) {
                 this.velocity.y = 0;
+                // Stop gliding if entering fly mode
+                if (this.physics.isGliding) this.physics.stopGliding();
             }
           } else {
             this.lastSpacePressTime = now;
@@ -1291,8 +1424,14 @@ export class Player {
 
           if (this.flyMode) {
             this.moveUp = true;
+          } else if (this.physics.isGliding) {
+            // Already gliding — do nothing on space
+          } else if (!this.canJump && !this.physics.inWater && this.velocity.y < 0 && this.hasElytraEquipped()) {
+            // Activate elytra: falling + not on ground + elytra equipped
+            this.physics.startGliding();
           } else if (this.physics.inWater) {
-              this.canJump = true; // Allow swimming up
+              this.swimming = true;
+              this.canJump = true;
           } else if (this.canJump) {
             this.velocity.y = 9.0;
             this.canJump = false;
@@ -1333,6 +1472,8 @@ export class Player {
           break;
         case 'Space':
           this.moveUp = false;
+          this.swimming = false;
+          if (this.physics.inWater) this.canJump = false;
           break;
         case 'ShiftLeft':
         case 'ShiftRight':
@@ -1344,6 +1485,17 @@ export class Player {
 
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('keyup', onKeyUp);
+  }
+
+  getWaterIntersection() {
+    this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+    const meshes = [];
+    this.game.world.chunks.forEach(chunk => {
+      if (chunk.waterMesh) meshes.push(chunk.waterMesh);
+    });
+    const intersects = this.raycaster.intersectObjects(meshes);
+    if (intersects.length > 0) return intersects[0];
+    return null;
   }
 
   getIntersection() {
@@ -1457,6 +1609,40 @@ export class Player {
         if (blockType && itemDef && itemDef.isPlaceable) {
           // Door placement: need 2 blocks of space
           const placedDef = BlockDefinitions[blockType];
+          let actualBlockType = blockType;
+
+          // Torch placement logic
+          if (blockType === BlockType.TORCH) {
+            const nx = Math.round(normal.x);
+            const ny = Math.round(normal.y);
+            const nz = Math.round(normal.z);
+
+            if (ny === 1) {
+              // Placed on top face: floor torch - check block below is solid
+              const below = this.game.world.getBlock(x, y - 1, z);
+              if (!isSolid(below)) return;
+              actualBlockType = BlockType.TORCH;
+            } else if (ny === -1) {
+              // Placed on bottom face: can't place torch under a block
+              return;
+            } else {
+              // Placed on side face: wall torch
+              // The wall block is in the opposite direction of normal
+              const wallX = x - nx;
+              const wallY = y;
+              const wallZ = z - nz;
+              const wallBlock = this.game.world.getBlock(wallX, wallY, wallZ);
+              if (!isSolid(wallBlock)) return;
+
+              // Normal points away from wall = direction torch faces
+              if (nx === 1) actualBlockType = BlockType.TORCH_WALL_EAST;
+              else if (nx === -1) actualBlockType = BlockType.TORCH_WALL_WEST;
+              else if (nz === 1) actualBlockType = BlockType.TORCH_WALL_SOUTH;
+              else if (nz === -1) actualBlockType = BlockType.TORCH_WALL_NORTH;
+              else return;
+            }
+          }
+
           if (placedDef && placedDef.isDoor && placedDef.isBottom) {
             const above = this.game.world.getBlock(x, y + 1, z);
             if (above !== BlockType.AIR) return; // No room for top half
@@ -1464,7 +1650,7 @@ export class Player {
             this.game.world.setBlock(x, y, z, blockType);
             this.game.world.setBlock(x, y + 1, z, blockType + 1);
           } else {
-            this.game.world.setBlock(x, y, z, blockType);
+            this.game.world.setBlock(x, y, z, actualBlockType);
           }
 
           // Place sound
@@ -1473,7 +1659,7 @@ export class Player {
           }
           
           if (this.game.networkManager && this.game.networkManager.connected) {
-              this.game.networkManager.sendBlockUpdate(x, y, z, blockType);
+              this.game.networkManager.sendBlockUpdate(x, y, z, actualBlockType);
           }
           
           // Consume item
@@ -1566,14 +1752,23 @@ export class Player {
 
     if (this.controls.isLocked === true || this.isMobile) {
       
-      // FOV Effect for sprinting
-      const targetFOV = this.isSprinting ? 85 : 75;
+      // FOV Effect for sprinting / elytra
+      let targetFOV = 75;
+      if (this.physics.isGliding) {
+        targetFOV = this.physics.fireworkBoostTime > 0 ? 100 : 90;
+      } else if (this.isSprinting) {
+        targetFOV = 85;
+      }
       if (Math.abs(this.camera.fov - targetFOV) > 0.1) {
           this.camera.fov += (targetFOV - this.camera.fov) * delta * 10;
           this.camera.updateProjectionMatrix();
       }
 
-      const currentSpeed = this.flyMode ? this.flySpeed : (this.isSprinting ? this.sprintSpeed : this.speed);
+      let currentSpeed = this.flyMode ? this.flySpeed : (this.isSprinting ? this.sprintSpeed : this.speed);
+      if (this.physics.inWater && !this.flyMode) currentSpeed *= 0.6;
+
+      // Skip normal movement when gliding — elytra physics handles velocity
+      if (!this.physics.isGliding) {
 
       // Calcul de la direction de mouvement souhaitée
       this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
@@ -1629,6 +1824,40 @@ export class Player {
           this.velocity.z = 0;
       }
 
+      } // End of !isGliding block
+
+      // While gliding, don't override velocity from regular movement
+      if (this.physics.isGliding) {
+        // Stop gliding if on ground or in water
+        if (this.canJump || this.physics.inWater) {
+          this.physics.stopGliding();
+        }
+        // Elytra durability: 1 damage per second of flight
+        if (this.gamemode === 'survival') {
+          if (!this._elytraDurTimer) this._elytraDurTimer = 0;
+          this._elytraDurTimer += delta;
+          if (this._elytraDurTimer >= 1.0) {
+            this._elytraDurTimer = 0;
+            const chestItem = this.inventory.getItem(37);
+            if (chestItem) {
+              const def = ItemDefinitions[chestItem.type];
+              if (def && def.durability) {
+                chestItem.durability = (chestItem.durability || def.durability) - 1;
+                if (chestItem.durability <= 0) {
+                  this.inventory.slots[37] = null;
+                  this.physics.stopGliding();
+                }
+              }
+            }
+          }
+        }
+        // Firework trail particles while boosting
+        if (this.physics.fireworkBoostTime > 0 && this.game.particleSystem) {
+          const pos = this.camera.position;
+          this.game.particleSystem.spawnFireworkTrail(pos.x, pos.y - 1, pos.z);
+        }
+      }
+
       // Mise à jour physique
       this.physics.update(delta);
       
@@ -1660,6 +1889,12 @@ export class Player {
 
     // Update Player Mesh
     const isMoving = this.velocity.x !== 0 || this.velocity.z !== 0;
+    
+    // Sync elytra visuals
+    const elytraEquipped = this.hasElytraEquipped();
+    this.playerMesh.setElytraVisible(elytraEquipped);
+    this.playerMesh.setElytraGliding(this.physics.isGliding);
+    
     this.playerMesh.update(delta, isMoving, this.isSprinting, this.controlsObject.rotation.y, this.controlsObject.rotation.x);
     
     // Mesh Position (Feet)
