@@ -1,3 +1,8 @@
+// ========================================
+// Block.js - Complete Block Registry
+// Minecraft 1.20.1 style block definitions
+// ========================================
+
 export const BlockType = {
   AIR: 0,
   STONE: 1,
@@ -19,20 +24,174 @@ export const BlockType = {
   DARK_OAK_LOG: 17,
   DARK_OAK_LEAVES: 18,
   CLOUD: 19,
-  TALL_GRASS: 25,
-  TORCH: 100,
-  CARROT: 200,
-  // New Mushroom Biome Blocks
   MUSHROOM_STEM_PORE: 20,
   RED_MUSHROOM_BLOCK: 21,
   BROWN_MUSHROOM_BLOCK: 22,
   SPORE_BLOCK: 23,
-  // Magical World Blocks
+  TALL_GRASS: 25,
   MAGIC_STONE: 30,
   MAGIC_DIRT: 31,
   MAGIC_LOG: 33,
   MAGIC_LEAVES: 34,
-  MAGIC_WATER: 36
+  MAGIC_WATER: 36,
+
+  // Stone variants
+  COBBLESTONE: 40,
+  MOSSY_COBBLESTONE: 41,
+  GRANITE: 42,
+  POLISHED_GRANITE: 43,
+  DIORITE: 44,
+  POLISHED_DIORITE: 45,
+  ANDESITE: 46,
+  POLISHED_ANDESITE: 47,
+  DEEPSLATE: 48,
+  TUFF: 49,
+  CALCITE: 50,
+  SMOOTH_STONE: 51,
+  STONE_BRICKS: 52,
+
+  // Ores
+  IRON_ORE: 53,
+  GOLD_ORE: 54,
+  DIAMOND_ORE: 55,
+  EMERALD_ORE: 56,
+  LAPIS_ORE: 57,
+  REDSTONE_ORE: 58,
+  COPPER_ORE: 59,
+  DEEPSLATE_IRON_ORE: 60,
+  DEEPSLATE_GOLD_ORE: 61,
+  DEEPSLATE_DIAMOND_ORE: 62,
+  DEEPSLATE_COAL_ORE: 63,
+  DEEPSLATE_COPPER_ORE: 64,
+  DEEPSLATE_EMERALD_ORE: 65,
+  DEEPSLATE_LAPIS_ORE: 66,
+  DEEPSLATE_REDSTONE_ORE: 67,
+  NETHER_GOLD_ORE: 68,
+  NETHER_QUARTZ_ORE: 69,
+  ANCIENT_DEBRIS: 70,
+
+  // Metal/mineral blocks
+  IRON_BLOCK: 71,
+  GOLD_BLOCK: 72,
+  DIAMOND_BLOCK: 73,
+  EMERALD_BLOCK: 74,
+  LAPIS_BLOCK: 75,
+  REDSTONE_BLOCK: 76,
+  COPPER_BLOCK: 77,
+  NETHERITE_BLOCK: 78,
+  AMETHYST_BLOCK: 79,
+  COAL_BLOCK: 83,
+
+  // Wood types
+  OAK_LOG: 84,
+  OAK_PLANKS: 85,
+  OAK_LEAVES: 86,
+  BIRCH_LOG: 87,
+  BIRCH_PLANKS: 88,
+  BIRCH_LEAVES: 89,
+  JUNGLE_LOG: 90,
+  JUNGLE_PLANKS: 91,
+  JUNGLE_LEAVES: 92,
+  ACACIA_LOG: 93,
+  ACACIA_PLANKS: 94,
+  ACACIA_LEAVES: 95,
+  CHERRY_LOG: 96,
+  CHERRY_PLANKS: 97,
+  CHERRY_LEAVES: 98,
+  MANGROVE_LOG: 99,
+  TORCH: 100,
+  MANGROVE_PLANKS: 101,
+  MANGROVE_LEAVES: 102,
+  SPRUCE_PLANKS: 103,
+  DARK_OAK_PLANKS: 104,
+
+  // Building blocks
+  GLASS: 105,
+  BRICKS: 106,
+  BOOKSHELF: 107,
+  OBSIDIAN: 108,
+  GRAVEL: 109,
+  CLAY: 110,
+  SANDSTONE: 111,
+  RED_SANDSTONE: 112,
+  QUARTZ_BLOCK: 113,
+  PRISMARINE: 114,
+  END_STONE: 115,
+  PURPUR_BLOCK: 116,
+  NETHER_BRICKS: 117,
+
+  // Wool
+  WHITE_WOOL: 120,
+  ORANGE_WOOL: 121,
+  MAGENTA_WOOL: 122,
+  LIGHT_BLUE_WOOL: 123,
+  YELLOW_WOOL: 124,
+  LIME_WOOL: 125,
+  PINK_WOOL: 126,
+  GRAY_WOOL: 127,
+  LIGHT_GRAY_WOOL: 128,
+  CYAN_WOOL: 129,
+  PURPLE_WOOL: 130,
+  BLUE_WOOL: 131,
+  BROWN_WOOL: 132,
+  GREEN_WOOL: 133,
+  RED_WOOL: 134,
+  BLACK_WOOL: 135,
+
+  // Concrete
+  WHITE_CONCRETE: 140,
+  ORANGE_CONCRETE: 141,
+  MAGENTA_CONCRETE: 142,
+  LIGHT_BLUE_CONCRETE: 143,
+  YELLOW_CONCRETE: 144,
+  LIME_CONCRETE: 145,
+  PINK_CONCRETE: 146,
+  GRAY_CONCRETE: 147,
+  LIGHT_GRAY_CONCRETE: 148,
+  CYAN_CONCRETE: 149,
+  PURPLE_CONCRETE: 150,
+  BLUE_CONCRETE: 151,
+  BROWN_CONCRETE: 152,
+  GREEN_CONCRETE: 153,
+  RED_CONCRETE: 154,
+  BLACK_CONCRETE: 155,
+
+  // Terracotta
+  TERRACOTTA: 160,
+
+  // Functional blocks
+  CRAFTING_TABLE: 170,
+  FURNACE: 171,
+  BED: 172,
+  CHEST: 173,
+  TNT: 174,
+  ENCHANTING_TABLE: 176,
+  ANVIL: 177,
+
+  // Nature
+  LAVA: 180,
+  GLOWSTONE: 181,
+  NETHERRACK: 182,
+  SOUL_SAND: 183,
+  BASALT: 185,
+  BLACKSTONE: 186,
+  CRYING_OBSIDIAN: 187,
+
+  // Deco
+  MOSS_BLOCK: 188,
+  SEA_LANTERN: 192,
+  LANTERN: 193,
+  HAY_BALE: 194,
+  PUMPKIN: 195,
+  JACK_O_LANTERN: 196,
+  MELON_BLOCK: 197,
+  LADDER: 198,
+  FARMLAND: 199,
+  CARROT: 200,
+  SPONGE: 201,
+  NOTE_BLOCK: 204,
+  JUKEBOX: 205,
+  DIRT_PATH: 206,
 };
 
 export const BlockModels = {
@@ -40,168 +199,254 @@ export const BlockModels = {
   TORCH: 'torch',
   CACTUS: 'cactus',
   CROSS: 'cross',
-  GRASS: 'grass'
+  GRASS: 'grass',
+  SLAB: 'slab',
+  LADDER: 'ladder',
+};
+
+export const BlockMaterial = {
+  DIRT: 'dirt',
+  WOOD: 'wood',
+  STONE: 'stone',
+  METAL: 'metal',
+  PLANT: 'plant',
+  WOOL: 'wool',
+  SAND: 'sand',
+  GLASS: 'glass',
 };
 
 export const BlockDefinitions = {
   [BlockType.AIR]: { visible: false },
-  [BlockType.MAGIC_STONE]: { 
-      color: 0x4B0082, 
-      visible: true, 
-      model: BlockModels.CUBE,
-      textures: { all: 'magic_stone.png' }
-  },
-  [BlockType.MAGIC_DIRT]: { 
-      color: 0x8A2BE2, 
-      visible: true, 
-      model: BlockModels.CUBE,
-      textures: { all: 'dirt.png' }
-  },
-  [BlockType.MAGIC_LOG]: { 
-      color: 0x483D8B, 
-      visible: true, 
-      model: BlockModels.CUBE,
-      textures: {
-          top: 'magic_log_top.png',
-          bottom: 'magic_log_top.png',
-          side: 'magic_log.png'
-      }
-  },
-  [BlockType.MAGIC_LEAVES]: { 
-      color: 0x00CED1, 
-      visible: true, 
-      model: BlockModels.CUBE, 
-      transparent: true, 
-      opacity: 0.9,
-      textures: { all: 'magic_leaves.png' }
-  },
-  [BlockType.MAGIC_WATER]: { 
-      color: 0x00FFFF, 
-      visible: true, 
-      model: BlockModels.CUBE, 
-      transparent: true, 
-      opacity: 0.6,
-      textures: { all: 'water_overlay.png' }
-  },
-  [BlockType.CLOUD]: { color: 0xFFFFFF, visible: true, model: BlockModels.CUBE, transparent: true, opacity: 0.8 },
-  [BlockType.STONE]: { color: 0x888888, visible: true, model: BlockModels.CUBE, textures: { all: 'stone.png' } },
-  [BlockType.DIRT]: { 
-    color: 0x8B4513, 
-    visible: true, 
-    model: BlockModels.CUBE,
-    textures: { all: 'dirt.png' }
-  },
-  [BlockType.GRASS]: { 
-    color: 0x00AA00, 
-    visible: true, 
-    model: BlockModels.CUBE,
-    textures: {
-      top: 'grass_block_tint.png',
-      side: 'grass_block_side.png',
-      bottom: 'dirt.png'
-    }
-  },
-  [BlockType.TALL_GRASS]: {
-    color: 0x00AA00,
-    visible: true,
-    model: BlockModels.GRASS,
-    transparent: true,
-    opacity: 1.0,
-    textures: { all: 'grass_block_tint.png' }
-  },
-  [BlockType.BEDROCK]: { color: 0x333333, visible: true, model: BlockModels.CUBE },
-  [BlockType.SPRUCE_LOG]: { 
-    color: 0x5D4037, 
-    visible: true, 
-    model: BlockModels.CUBE,
-    textures: {
-      top: 'spruce_log_top.png',
-      bottom: 'spruce_log_top.png',
-      side: 'spruce_log.png'
-    }
-  },
-  [BlockType.LEAVES]: { color: 0x2E7D32, visible: true, model: BlockModels.CUBE, textures: { all: 'spruce_leaves.png' } },
-  [BlockType.SAND]: { color: 0xE1C699, visible: true, model: BlockModels.CUBE, textures: { all: 'sand.png' } },
-  [BlockType.WATER]: { color: 0x4FC3F7, visible: true, model: BlockModels.CUBE, textures: { all: 'water_overlay.png' } },
-  [BlockType.PINE_LEAVES]: { color: 0x1B5E20, visible: true, model: BlockModels.CUBE, textures: { all: 'spruce_leaves.png' } }, // Darker green
-  [BlockType.CACTUS]: { 
-    color: 0x66BB6A, 
-    visible: true, 
-    model: BlockModels.CACTUS, 
-    textures: {
-      top: 'cactus_top.png',
-      side: 'cactus_side.png',
-      bottom: 'cactus_top.png'
-    } 
-},
-  [BlockType.SNOW]: { color: 0xFFFFFF, visible: true, model: BlockModels.CUBE, textures: { all: 'snow.png' } },
-  [BlockType.MUSHROOM_STEM]: { 
-    color: 0xD7CCC8, 
-    visible: true, 
-    model: BlockModels.CUBE,
-    // TODO: Add mushroom_stem.png texture
-    textures: { all: 'mushroom_stem.png' } 
-  },
-  [BlockType.MUSHROOM_CAP]: { color: 0xE53935, visible: true, model: BlockModels.CUBE }, // Red mushroom
-  [BlockType.CARROT]: { color: 0xFFA500, visible: false }, // Item only
-  [BlockType.MYCELIUM]: { 
-    color: 0x7E57C2, 
-    visible: true, 
-    model: BlockModels.CUBE,
-    // TODO: Add mycelium_top.png, mycelium_side.png textures
-    textures: {
-      top: 'mycelium_top.png',
-      side: 'mycelium_side.png',
-      bottom: 'dirt.png'
-    }
-  }, 
-  [BlockType.COAL_ORE]: { color: 0x111111, visible: true, model: BlockModels.CUBE, textures: { all: 'coal_ore.png' } }, // Black coal block
-  [BlockType.MAGMA]: { color: 0xFF4500, visible: true, model: BlockModels.CUBE, textures: { all: 'stone.png' } }, // Orange-Red, reusing stone texture
-  [BlockType.DARK_OAK_LOG]: { 
-    color: 0x3E2723, // Very dark brown
-    visible: true, 
-    model: BlockModels.CUBE,
-    textures: {
-      top: 'spruce_log_top.png', // Reusing spruce textures but darker color will be applied if I remove texture or tint it. 
-      // Actually, the renderer prefers texture if available. 
-      // I'll rely on the color tinting logic I'll add or just use the color if texture is missing.
-      // But wait, the renderer uses white if texture exists.
-      // I should probably not set texture if I want the color to show, OR I need to implement tinting for these blocks.
-      // For now, let's reuse spruce textures.
-      top: 'spruce_log_top.png',
-      bottom: 'spruce_log_top.png',
-      side: 'spruce_log.png'
-    }
-  },
-  [BlockType.DARK_OAK_LEAVES]: { color: 0x1B5E20, visible: true, model: BlockModels.CUBE, textures: { all: 'spruce_leaves.png' } },
-  [BlockType.TORCH]: { color: 0xFFD700, visible: true, light: 15, transparent: true, model: BlockModels.TORCH }, // Gold color for torch
-  
-  // New Mushroom Biome Blocks Definitions
-  [BlockType.MUSHROOM_STEM_PORE]: { 
-    color: 0xCFCFCF, 
-    visible: true, 
-    model: BlockModels.CUBE,
-    // TODO: Add mushroom_block_inside.png texture (pores)
-    textures: { all: 'mushroom_block_inside.png' }
-  },
-  [BlockType.RED_MUSHROOM_BLOCK]: { 
-    color: 0xC62828, 
-    visible: true, 
-    model: BlockModels.CUBE,
-    textures: { all: 'red_mushroom_block.png' }
-  },
-  [BlockType.BROWN_MUSHROOM_BLOCK]: { 
-    color: 0x5D4037, 
-    visible: true, 
-    model: BlockModels.CUBE,
-    // TODO: Add brown_mushroom_block.png texture
-    textures: { all: 'brown_mushroom_block.png' }
-  },
-  [BlockType.SPORE_BLOCK]: { 
-    color: 0x9C27B0, 
-    visible: true, 
-    model: BlockModels.CUBE,
-    // TODO: Add spore_block.png texture (maybe animated later?)
-    textures: { all: 'spore_block.png' }
-  }
+  [BlockType.STONE]: { color: 0x888888, visible: true, model: BlockModels.CUBE, textures: { all: 'stone.png' }, hardness: 1.5, material: BlockMaterial.STONE, miningLevel: 1, drops: 'COBBLESTONE' },
+  [BlockType.COBBLESTONE]: { color: 0x787878, visible: true, model: BlockModels.CUBE, textures: { all: 'cobblestone.png' }, hardness: 2.0, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.MOSSY_COBBLESTONE]: { color: 0x6E7860, visible: true, model: BlockModels.CUBE, textures: { all: 'mossy_cobblestone.png' }, hardness: 2.0, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.GRANITE]: { color: 0xA06E5A, visible: true, model: BlockModels.CUBE, textures: { all: 'granite.png' }, hardness: 1.5, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.POLISHED_GRANITE]: { color: 0x9B6955, visible: true, model: BlockModels.CUBE, textures: { all: 'polished_granite.png' }, hardness: 1.5, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.DIORITE]: { color: 0xBEBEBE, visible: true, model: BlockModels.CUBE, textures: { all: 'diorite.png' }, hardness: 1.5, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.POLISHED_DIORITE]: { color: 0xC3C3C3, visible: true, model: BlockModels.CUBE, textures: { all: 'polished_diorite.png' }, hardness: 1.5, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.ANDESITE]: { color: 0x8C8C8C, visible: true, model: BlockModels.CUBE, textures: { all: 'andesite.png' }, hardness: 1.5, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.POLISHED_ANDESITE]: { color: 0x919191, visible: true, model: BlockModels.CUBE, textures: { all: 'polished_andesite.png' }, hardness: 1.5, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.DEEPSLATE]: { color: 0x3C3C41, visible: true, model: BlockModels.CUBE, textures: { all: 'deepslate.png' }, hardness: 3.0, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.TUFF]: { color: 0x69695F, visible: true, model: BlockModels.CUBE, textures: { all: 'tuff.png' }, hardness: 1.5, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.CALCITE]: { color: 0xE1E1DC, visible: true, model: BlockModels.CUBE, textures: { all: 'calcite.png' }, hardness: 0.75, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.SMOOTH_STONE]: { color: 0xA5A5A5, visible: true, model: BlockModels.CUBE, textures: { all: 'smooth_stone.png' }, hardness: 2.0, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.STONE_BRICKS]: { color: 0x828282, visible: true, model: BlockModels.CUBE, textures: { all: 'stone_bricks.png' }, hardness: 1.5, material: BlockMaterial.STONE, miningLevel: 1 },
+
+  [BlockType.DIRT]: { color: 0x8B4513, visible: true, model: BlockModels.CUBE, textures: { all: 'dirt.png' }, hardness: 0.5, material: BlockMaterial.DIRT },
+  [BlockType.GRASS]: { color: 0x00AA00, visible: true, model: BlockModels.CUBE, textures: { top: 'grass_block_tint.png', side: 'grass_block_side.png', bottom: 'dirt.png' }, hardness: 0.6, material: BlockMaterial.DIRT, drops: 'DIRT' },
+  [BlockType.DIRT_PATH]: { color: 0xA59160, visible: true, model: BlockModels.CUBE, textures: { top: 'dirt_path_top.png', side: 'dirt.png', bottom: 'dirt.png' }, hardness: 0.65, material: BlockMaterial.DIRT },
+  [BlockType.FARMLAND]: { color: 0x785028, visible: true, model: BlockModels.CUBE, textures: { top: 'farmland.png', side: 'dirt.png', bottom: 'dirt.png' }, hardness: 0.6, material: BlockMaterial.DIRT },
+  [BlockType.MYCELIUM]: { color: 0x7E57C2, visible: true, model: BlockModels.CUBE, textures: { top: 'mycelium_top.png', side: 'mycelium_side.png', bottom: 'dirt.png' }, hardness: 0.6, material: BlockMaterial.DIRT },
+  [BlockType.GRAVEL]: { color: 0x827D78, visible: true, model: BlockModels.CUBE, textures: { all: 'gravel.png' }, hardness: 0.6, material: BlockMaterial.DIRT, gravity: true },
+  [BlockType.CLAY]: { color: 0xA0A5AF, visible: true, model: BlockModels.CUBE, textures: { all: 'clay.png' }, hardness: 0.6, material: BlockMaterial.DIRT },
+  [BlockType.MOSS_BLOCK]: { color: 0x55782D, visible: true, model: BlockModels.CUBE, textures: { all: 'moss_block.png' }, hardness: 0.1, material: BlockMaterial.PLANT },
+  [BlockType.SAND]: { color: 0xE1C699, visible: true, model: BlockModels.CUBE, textures: { all: 'sand.png' }, hardness: 0.5, material: BlockMaterial.SAND, gravity: true },
+  [BlockType.SANDSTONE]: { color: 0xDCCDA0, visible: true, model: BlockModels.CUBE, textures: { top: 'sandstone_top.png', bottom: 'sandstone_bottom.png', side: 'sandstone.png' }, hardness: 0.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.RED_SANDSTONE]: { color: 0xBE692D, visible: true, model: BlockModels.CUBE, textures: { all: 'red_sandstone.png' }, hardness: 0.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.SNOW]: { color: 0xFFFFFF, visible: true, model: BlockModels.CUBE, textures: { all: 'snow.png' }, hardness: 0.2, material: BlockMaterial.DIRT },
+
+  // Ores
+  [BlockType.COAL_ORE]: { color: 0x111111, visible: true, model: BlockModels.CUBE, textures: { all: 'coal_ore.png' }, hardness: 3.0, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.IRON_ORE]: { color: 0xD2B496, visible: true, model: BlockModels.CUBE, textures: { all: 'iron_ore.png' }, hardness: 3.0, material: BlockMaterial.STONE, miningLevel: 2 },
+  [BlockType.GOLD_ORE]: { color: 0xFFD700, visible: true, model: BlockModels.CUBE, textures: { all: 'gold_ore.png' }, hardness: 3.0, material: BlockMaterial.STONE, miningLevel: 3 },
+  [BlockType.DIAMOND_ORE]: { color: 0x50DCE6, visible: true, model: BlockModels.CUBE, textures: { all: 'diamond_ore.png' }, hardness: 3.0, material: BlockMaterial.STONE, miningLevel: 3 },
+  [BlockType.EMERALD_ORE]: { color: 0x32C850, visible: true, model: BlockModels.CUBE, textures: { all: 'emerald_ore.png' }, hardness: 3.0, material: BlockMaterial.STONE, miningLevel: 3 },
+  [BlockType.LAPIS_ORE]: { color: 0x1E3CB4, visible: true, model: BlockModels.CUBE, textures: { all: 'lapis_ore.png' }, hardness: 3.0, material: BlockMaterial.STONE, miningLevel: 2 },
+  [BlockType.REDSTONE_ORE]: { color: 0xC81E1E, visible: true, model: BlockModels.CUBE, textures: { all: 'redstone_ore.png' }, hardness: 3.0, material: BlockMaterial.STONE, miningLevel: 3 },
+  [BlockType.COPPER_ORE]: { color: 0xBE7846, visible: true, model: BlockModels.CUBE, textures: { all: 'copper_ore.png' }, hardness: 3.0, material: BlockMaterial.STONE, miningLevel: 2 },
+  [BlockType.DEEPSLATE_IRON_ORE]: { color: 0xD2B496, visible: true, model: BlockModels.CUBE, textures: { all: 'deepslate_iron_ore.png' }, hardness: 4.5, material: BlockMaterial.STONE, miningLevel: 2 },
+  [BlockType.DEEPSLATE_GOLD_ORE]: { color: 0xFFD700, visible: true, model: BlockModels.CUBE, textures: { all: 'deepslate_gold_ore.png' }, hardness: 4.5, material: BlockMaterial.STONE, miningLevel: 3 },
+  [BlockType.DEEPSLATE_DIAMOND_ORE]: { color: 0x50DCE6, visible: true, model: BlockModels.CUBE, textures: { all: 'deepslate_diamond_ore.png' }, hardness: 4.5, material: BlockMaterial.STONE, miningLevel: 3 },
+  [BlockType.DEEPSLATE_COAL_ORE]: { color: 0x222232, visible: true, model: BlockModels.CUBE, textures: { all: 'deepslate_coal_ore.png' }, hardness: 4.5, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.DEEPSLATE_COPPER_ORE]: { color: 0xBE7846, visible: true, model: BlockModels.CUBE, textures: { all: 'deepslate_copper_ore.png' }, hardness: 4.5, material: BlockMaterial.STONE, miningLevel: 2 },
+  [BlockType.DEEPSLATE_EMERALD_ORE]: { color: 0x32C850, visible: true, model: BlockModels.CUBE, textures: { all: 'deepslate_emerald_ore.png' }, hardness: 4.5, material: BlockMaterial.STONE, miningLevel: 3 },
+  [BlockType.DEEPSLATE_LAPIS_ORE]: { color: 0x1E3CB4, visible: true, model: BlockModels.CUBE, textures: { all: 'deepslate_lapis_ore.png' }, hardness: 4.5, material: BlockMaterial.STONE, miningLevel: 2 },
+  [BlockType.DEEPSLATE_REDSTONE_ORE]: { color: 0xC81E1E, visible: true, model: BlockModels.CUBE, textures: { all: 'deepslate_redstone_ore.png' }, hardness: 4.5, material: BlockMaterial.STONE, miningLevel: 3 },
+  [BlockType.NETHER_GOLD_ORE]: { color: 0xFFD700, visible: true, model: BlockModels.CUBE, textures: { all: 'nether_gold_ore.png' }, hardness: 3.0, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.NETHER_QUARTZ_ORE]: { color: 0xE6DCD2, visible: true, model: BlockModels.CUBE, textures: { all: 'nether_quartz_ore.png' }, hardness: 3.0, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.ANCIENT_DEBRIS]: { color: 0x644640, visible: true, model: BlockModels.CUBE, textures: { all: 'ancient_debris_side.png' }, hardness: 30.0, material: BlockMaterial.METAL, miningLevel: 4 },
+
+  // Metal blocks
+  [BlockType.IRON_BLOCK]: { color: 0xDCDCDC, visible: true, model: BlockModels.CUBE, textures: { all: 'iron_block.png' }, hardness: 5.0, material: BlockMaterial.METAL, miningLevel: 2 },
+  [BlockType.GOLD_BLOCK]: { color: 0xFFD700, visible: true, model: BlockModels.CUBE, textures: { all: 'gold_block.png' }, hardness: 3.0, material: BlockMaterial.METAL, miningLevel: 3 },
+  [BlockType.DIAMOND_BLOCK]: { color: 0x64DCF0, visible: true, model: BlockModels.CUBE, textures: { all: 'diamond_block.png' }, hardness: 5.0, material: BlockMaterial.METAL, miningLevel: 3 },
+  [BlockType.EMERALD_BLOCK]: { color: 0x3CD25A, visible: true, model: BlockModels.CUBE, textures: { all: 'emerald_block.png' }, hardness: 5.0, material: BlockMaterial.METAL, miningLevel: 3 },
+  [BlockType.LAPIS_BLOCK]: { color: 0x2341B9, visible: true, model: BlockModels.CUBE, textures: { all: 'lapis_block.png' }, hardness: 3.0, material: BlockMaterial.STONE, miningLevel: 2 },
+  [BlockType.REDSTONE_BLOCK]: { color: 0xB41414, visible: true, model: BlockModels.CUBE, textures: { all: 'redstone_block.png' }, hardness: 5.0, material: BlockMaterial.METAL, miningLevel: 1 },
+  [BlockType.COPPER_BLOCK]: { color: 0xBE7846, visible: true, model: BlockModels.CUBE, textures: { all: 'copper_block.png' }, hardness: 3.0, material: BlockMaterial.METAL, miningLevel: 2 },
+  [BlockType.NETHERITE_BLOCK]: { color: 0x322D2D, visible: true, model: BlockModels.CUBE, textures: { all: 'netherite_block.png' }, hardness: 50.0, material: BlockMaterial.METAL, miningLevel: 4 },
+  [BlockType.AMETHYST_BLOCK]: { color: 0x8C5AC8, visible: true, model: BlockModels.CUBE, textures: { all: 'amethyst_block.png' }, hardness: 1.5, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.COAL_BLOCK]: { color: 0x232323, visible: true, model: BlockModels.CUBE, textures: { all: 'coal_block.png' }, hardness: 5.0, material: BlockMaterial.STONE, miningLevel: 1 },
+
+  // Wood
+  [BlockType.OAK_LOG]: { color: 0x6E5528, visible: true, model: BlockModels.CUBE, textures: { top: 'oak_log_top.png', bottom: 'oak_log_top.png', side: 'oak_log.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+  [BlockType.OAK_PLANKS]: { color: 0xAA8755, visible: true, model: BlockModels.CUBE, textures: { all: 'oak_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+  [BlockType.OAK_LEAVES]: { color: 0x377823, visible: true, model: BlockModels.CUBE, textures: { all: 'oak_leaves.png' }, transparent: true, opacity: 0.9, hardness: 0.2, material: BlockMaterial.PLANT },
+  [BlockType.BIRCH_LOG]: { color: 0xD2C8AA, visible: true, model: BlockModels.CUBE, textures: { top: 'birch_log_top.png', bottom: 'birch_log_top.png', side: 'birch_log.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+  [BlockType.BIRCH_PLANKS]: { color: 0xD2C8AA, visible: true, model: BlockModels.CUBE, textures: { all: 'birch_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+  [BlockType.BIRCH_LEAVES]: { color: 0x4B8C32, visible: true, model: BlockModels.CUBE, textures: { all: 'birch_leaves.png' }, transparent: true, opacity: 0.9, hardness: 0.2, material: BlockMaterial.PLANT },
+  [BlockType.JUNGLE_LOG]: { color: 0x9B6E41, visible: true, model: BlockModels.CUBE, textures: { top: 'jungle_log_top.png', bottom: 'jungle_log_top.png', side: 'jungle_log.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+  [BlockType.JUNGLE_PLANKS]: { color: 0x9B6E41, visible: true, model: BlockModels.CUBE, textures: { all: 'jungle_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+  [BlockType.JUNGLE_LEAVES]: { color: 0x286E14, visible: true, model: BlockModels.CUBE, textures: { all: 'jungle_leaves.png' }, transparent: true, opacity: 0.9, hardness: 0.2, material: BlockMaterial.PLANT },
+  [BlockType.ACACIA_LOG]: { color: 0x6E6964, visible: true, model: BlockModels.CUBE, textures: { top: 'acacia_log_top.png', bottom: 'acacia_log_top.png', side: 'acacia_log.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+  [BlockType.ACACIA_PLANKS]: { color: 0xAA5F32, visible: true, model: BlockModels.CUBE, textures: { all: 'acacia_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+  [BlockType.ACACIA_LEAVES]: { color: 0x64821E, visible: true, model: BlockModels.CUBE, textures: { all: 'acacia_leaves.png' }, transparent: true, opacity: 0.9, hardness: 0.2, material: BlockMaterial.PLANT },
+  [BlockType.CHERRY_LOG]: { color: 0x3C282D, visible: true, model: BlockModels.CUBE, textures: { top: 'cherry_log_top.png', bottom: 'cherry_log_top.png', side: 'cherry_log.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+  [BlockType.CHERRY_PLANKS]: { color: 0xE6AFA0, visible: true, model: BlockModels.CUBE, textures: { all: 'cherry_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+  [BlockType.CHERRY_LEAVES]: { color: 0xE6AABE, visible: true, model: BlockModels.CUBE, textures: { all: 'cherry_leaves.png' }, transparent: true, opacity: 0.9, hardness: 0.2, material: BlockMaterial.PLANT },
+  [BlockType.MANGROVE_LOG]: { color: 0x5A3723, visible: true, model: BlockModels.CUBE, textures: { top: 'mangrove_log_top.png', bottom: 'mangrove_log_top.png', side: 'mangrove_log.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+  [BlockType.MANGROVE_PLANKS]: { color: 0x783C2D, visible: true, model: BlockModels.CUBE, textures: { all: 'mangrove_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+  [BlockType.MANGROVE_LEAVES]: { color: 0x286419, visible: true, model: BlockModels.CUBE, textures: { all: 'mangrove_leaves.png' }, transparent: true, opacity: 0.9, hardness: 0.2, material: BlockMaterial.PLANT },
+  [BlockType.SPRUCE_LOG]: { color: 0x5D4037, visible: true, model: BlockModels.CUBE, textures: { top: 'spruce_log_top.png', bottom: 'spruce_log_top.png', side: 'spruce_log.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+  [BlockType.SPRUCE_PLANKS]: { color: 0x735532, visible: true, model: BlockModels.CUBE, textures: { all: 'spruce_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+  [BlockType.DARK_OAK_LOG]: { color: 0x3E2723, visible: true, model: BlockModels.CUBE, textures: { top: 'dark_oak_log_top.png', bottom: 'dark_oak_log_top.png', side: 'dark_oak_log.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+  [BlockType.DARK_OAK_PLANKS]: { color: 0x412D19, visible: true, model: BlockModels.CUBE, textures: { all: 'dark_oak_planks.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+  [BlockType.LEAVES]: { color: 0x2E7D32, visible: true, model: BlockModels.CUBE, textures: { all: 'spruce_leaves.png' }, hardness: 0.2, material: BlockMaterial.PLANT },
+  [BlockType.PINE_LEAVES]: { color: 0x1B5E20, visible: true, model: BlockModels.CUBE, textures: { all: 'spruce_leaves.png' }, hardness: 0.2, material: BlockMaterial.PLANT },
+  [BlockType.DARK_OAK_LEAVES]: { color: 0x1B5E20, visible: true, model: BlockModels.CUBE, textures: { all: 'spruce_leaves.png' }, hardness: 0.2, material: BlockMaterial.PLANT },
+
+  // Building
+  [BlockType.GLASS]: { color: 0xC8DCF0, visible: true, model: BlockModels.CUBE, textures: { all: 'glass.png' }, transparent: true, opacity: 0.4, hardness: 0.3, material: BlockMaterial.GLASS },
+  [BlockType.BRICKS]: { color: 0xA55541, visible: true, model: BlockModels.CUBE, textures: { all: 'bricks.png' }, hardness: 2.0, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.BOOKSHELF]: { color: 0x8C5A28, visible: true, model: BlockModels.CUBE, textures: { all: 'bookshelf.png' }, hardness: 1.5, material: BlockMaterial.WOOD },
+  [BlockType.OBSIDIAN]: { color: 0x140F1E, visible: true, model: BlockModels.CUBE, textures: { all: 'obsidian.png' }, hardness: 50.0, material: BlockMaterial.STONE, miningLevel: 4 },
+  [BlockType.QUARTZ_BLOCK]: { color: 0xEBE6E1, visible: true, model: BlockModels.CUBE, textures: { top: 'quartz_block_top.png', side: 'quartz_block_side.png', bottom: 'quartz_block_top.png' }, hardness: 0.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.PRISMARINE]: { color: 0x50968C, visible: true, model: BlockModels.CUBE, textures: { all: 'prismarine.png' }, hardness: 1.5, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.END_STONE]: { color: 0xDCDCA0, visible: true, model: BlockModels.CUBE, textures: { all: 'end_stone.png' }, hardness: 3.0, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.PURPUR_BLOCK]: { color: 0xAA7DAA, visible: true, model: BlockModels.CUBE, textures: { all: 'purpur_block.png' }, hardness: 1.5, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.NETHER_BRICKS]: { color: 0x32191E, visible: true, model: BlockModels.CUBE, textures: { all: 'nether_bricks.png' }, hardness: 2.0, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.SPONGE]: { color: 0xC8C83C, visible: true, model: BlockModels.CUBE, textures: { all: 'sponge.png' }, hardness: 0.6, material: BlockMaterial.PLANT },
+
+  // Wool
+  [BlockType.WHITE_WOOL]: { color: 0xEBEBEB, visible: true, model: BlockModels.CUBE, textures: { all: 'white_wool.png' }, hardness: 0.8, material: BlockMaterial.WOOL },
+  [BlockType.ORANGE_WOOL]: { color: 0xEB8C28, visible: true, model: BlockModels.CUBE, textures: { all: 'orange_wool.png' }, hardness: 0.8, material: BlockMaterial.WOOL },
+  [BlockType.MAGENTA_WOOL]: { color: 0xBE46BE, visible: true, model: BlockModels.CUBE, textures: { all: 'magenta_wool.png' }, hardness: 0.8, material: BlockMaterial.WOOL },
+  [BlockType.LIGHT_BLUE_WOOL]: { color: 0x6EAAE6, visible: true, model: BlockModels.CUBE, textures: { all: 'light_blue_wool.png' }, hardness: 0.8, material: BlockMaterial.WOOL },
+  [BlockType.YELLOW_WOOL]: { color: 0xF0DC32, visible: true, model: BlockModels.CUBE, textures: { all: 'yellow_wool.png' }, hardness: 0.8, material: BlockMaterial.WOOL },
+  [BlockType.LIME_WOOL]: { color: 0x78C832, visible: true, model: BlockModels.CUBE, textures: { all: 'lime_wool.png' }, hardness: 0.8, material: BlockMaterial.WOOL },
+  [BlockType.PINK_WOOL]: { color: 0xF0A0B4, visible: true, model: BlockModels.CUBE, textures: { all: 'pink_wool.png' }, hardness: 0.8, material: BlockMaterial.WOOL },
+  [BlockType.GRAY_WOOL]: { color: 0x4B4B4B, visible: true, model: BlockModels.CUBE, textures: { all: 'gray_wool.png' }, hardness: 0.8, material: BlockMaterial.WOOL },
+  [BlockType.LIGHT_GRAY_WOOL]: { color: 0x9B9B9B, visible: true, model: BlockModels.CUBE, textures: { all: 'light_gray_wool.png' }, hardness: 0.8, material: BlockMaterial.WOOL },
+  [BlockType.CYAN_WOOL]: { color: 0x1E828C, visible: true, model: BlockModels.CUBE, textures: { all: 'cyan_wool.png' }, hardness: 0.8, material: BlockMaterial.WOOL },
+  [BlockType.PURPLE_WOOL]: { color: 0x7832B4, visible: true, model: BlockModels.CUBE, textures: { all: 'purple_wool.png' }, hardness: 0.8, material: BlockMaterial.WOOL },
+  [BlockType.BLUE_WOOL]: { color: 0x3737B4, visible: true, model: BlockModels.CUBE, textures: { all: 'blue_wool.png' }, hardness: 0.8, material: BlockMaterial.WOOL },
+  [BlockType.BROWN_WOOL]: { color: 0x734B28, visible: true, model: BlockModels.CUBE, textures: { all: 'brown_wool.png' }, hardness: 0.8, material: BlockMaterial.WOOL },
+  [BlockType.GREEN_WOOL]: { color: 0x55731E, visible: true, model: BlockModels.CUBE, textures: { all: 'green_wool.png' }, hardness: 0.8, material: BlockMaterial.WOOL },
+  [BlockType.RED_WOOL]: { color: 0xA02D28, visible: true, model: BlockModels.CUBE, textures: { all: 'red_wool.png' }, hardness: 0.8, material: BlockMaterial.WOOL },
+  [BlockType.BLACK_WOOL]: { color: 0x191919, visible: true, model: BlockModels.CUBE, textures: { all: 'black_wool.png' }, hardness: 0.8, material: BlockMaterial.WOOL },
+
+  // Concrete
+  [BlockType.WHITE_CONCRETE]: { color: 0xCFD5D6, visible: true, model: BlockModels.CUBE, textures: { all: 'white_concrete.png' }, hardness: 1.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.ORANGE_CONCRETE]: { color: 0xE06B10, visible: true, model: BlockModels.CUBE, textures: { all: 'orange_concrete.png' }, hardness: 1.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.MAGENTA_CONCRETE]: { color: 0xA93298, visible: true, model: BlockModels.CUBE, textures: { all: 'magenta_concrete.png' }, hardness: 1.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.LIGHT_BLUE_CONCRETE]: { color: 0x2389C7, visible: true, model: BlockModels.CUBE, textures: { all: 'light_blue_concrete.png' }, hardness: 1.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.YELLOW_CONCRETE]: { color: 0xF0B510, visible: true, model: BlockModels.CUBE, textures: { all: 'yellow_concrete.png' }, hardness: 1.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.LIME_CONCRETE]: { color: 0x5EA818, visible: true, model: BlockModels.CUBE, textures: { all: 'lime_concrete.png' }, hardness: 1.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.PINK_CONCRETE]: { color: 0xD6658F, visible: true, model: BlockModels.CUBE, textures: { all: 'pink_concrete.png' }, hardness: 1.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.GRAY_CONCRETE]: { color: 0x363B3E, visible: true, model: BlockModels.CUBE, textures: { all: 'gray_concrete.png' }, hardness: 1.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.LIGHT_GRAY_CONCRETE]: { color: 0x7D7D73, visible: true, model: BlockModels.CUBE, textures: { all: 'light_gray_concrete.png' }, hardness: 1.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.CYAN_CONCRETE]: { color: 0x157788, visible: true, model: BlockModels.CUBE, textures: { all: 'cyan_concrete.png' }, hardness: 1.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.PURPLE_CONCRETE]: { color: 0x641F9C, visible: true, model: BlockModels.CUBE, textures: { all: 'purple_concrete.png' }, hardness: 1.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.BLUE_CONCRETE]: { color: 0x2C2E8F, visible: true, model: BlockModels.CUBE, textures: { all: 'blue_concrete.png' }, hardness: 1.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.BROWN_CONCRETE]: { color: 0x60331B, visible: true, model: BlockModels.CUBE, textures: { all: 'brown_concrete.png' }, hardness: 1.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.GREEN_CONCRETE]: { color: 0x495B24, visible: true, model: BlockModels.CUBE, textures: { all: 'green_concrete.png' }, hardness: 1.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.RED_CONCRETE]: { color: 0x8E2020, visible: true, model: BlockModels.CUBE, textures: { all: 'red_concrete.png' }, hardness: 1.8, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.BLACK_CONCRETE]: { color: 0x080A0F, visible: true, model: BlockModels.CUBE, textures: { all: 'black_concrete.png' }, hardness: 1.8, material: BlockMaterial.STONE, miningLevel: 1 },
+
+  [BlockType.TERRACOTTA]: { color: 0xA0644B, visible: true, model: BlockModels.CUBE, textures: { all: 'terracotta.png' }, hardness: 1.25, material: BlockMaterial.STONE, miningLevel: 1 },
+
+  // Functional
+  [BlockType.CRAFTING_TABLE]: { color: 0xA0782D, visible: true, model: BlockModels.CUBE, textures: { top: 'crafting_table_top.png', side: 'crafting_table_side.png', front: 'crafting_table_front.png', bottom: 'oak_planks.png' }, hardness: 2.5, material: BlockMaterial.WOOD, interactive: true },
+  [BlockType.FURNACE]: { color: 0x828282, visible: true, model: BlockModels.CUBE, textures: { top: 'furnace_top.png', side: 'furnace_side.png', front: 'furnace_front.png', bottom: 'furnace_top.png' }, hardness: 3.5, material: BlockMaterial.STONE, miningLevel: 1, interactive: true },
+  [BlockType.BED]: { color: 0xCC3333, visible: true, model: BlockModels.SLAB, textures: { top: 'red_wool.png', side: 'oak_planks.png', bottom: 'oak_planks.png' }, hardness: 0.2, material: BlockMaterial.WOOD, interactive: true },
+  [BlockType.CHEST]: { color: 0xA06E32, visible: true, model: BlockModels.CUBE, textures: { top: 'chest_top.png', side: 'chest_side.png', front: 'chest_front.png', bottom: 'chest_top.png' }, hardness: 2.5, material: BlockMaterial.WOOD, interactive: true },
+  [BlockType.ENCHANTING_TABLE]: { color: 0x2D1414, visible: true, model: BlockModels.CUBE, textures: { top: 'enchanting_table_top.png', side: 'enchanting_table_side.png', bottom: 'enchanting_table_bottom.png' }, hardness: 5.0, material: BlockMaterial.STONE, miningLevel: 1, interactive: true },
+  [BlockType.ANVIL]: { color: 0x3C3C3C, visible: true, model: BlockModels.CUBE, textures: { all: 'anvil.png' }, hardness: 5.0, material: BlockMaterial.METAL, miningLevel: 1, interactive: true },
+  [BlockType.TNT]: { color: 0xDC3228, visible: true, model: BlockModels.CUBE, textures: { top: 'tnt_top.png', bottom: 'tnt_bottom.png', side: 'tnt_side.png' }, hardness: 0.0, material: BlockMaterial.PLANT },
+
+  // Nature
+  [BlockType.BEDROCK]: { color: 0x333333, visible: true, model: BlockModels.CUBE, textures: { all: 'bedrock.png' }, hardness: -1 },
+  [BlockType.WATER]: { color: 0x4FC3F7, visible: true, model: BlockModels.CUBE, textures: { all: 'water_overlay.png' }, transparent: true, opacity: 0.6, hardness: 100, liquid: true },
+  [BlockType.LAVA]: { color: 0xDC6414, visible: true, model: BlockModels.CUBE, textures: { all: 'lava.png' }, hardness: 100, light: 15, liquid: true, damage: 4 },
+  [BlockType.MAGMA]: { color: 0xFF4500, visible: true, model: BlockModels.CUBE, textures: { all: 'lava.png' }, hardness: 0.5, material: BlockMaterial.STONE, miningLevel: 1, light: 3, damage: 1 },
+  [BlockType.GLOWSTONE]: { color: 0xFFDC78, visible: true, model: BlockModels.CUBE, textures: { all: 'glowstone.png' }, hardness: 0.3, material: BlockMaterial.GLASS, light: 15 },
+  [BlockType.NETHERRACK]: { color: 0x823737, visible: true, model: BlockModels.CUBE, textures: { all: 'netherrack.png' }, hardness: 0.4, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.SOUL_SAND]: { color: 0x504132, visible: true, model: BlockModels.CUBE, textures: { all: 'soul_sand.png' }, hardness: 0.5, material: BlockMaterial.SAND },
+  [BlockType.BASALT]: { color: 0x4B4B50, visible: true, model: BlockModels.CUBE, textures: { all: 'basalt_side.png' }, hardness: 1.25, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.BLACKSTONE]: { color: 0x282328, visible: true, model: BlockModels.CUBE, textures: { all: 'blackstone.png' }, hardness: 1.5, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.CRYING_OBSIDIAN]: { color: 0x1E0A32, visible: true, model: BlockModels.CUBE, textures: { all: 'crying_obsidian.png' }, hardness: 50.0, material: BlockMaterial.STONE, miningLevel: 4, light: 10 },
+  [BlockType.SEA_LANTERN]: { color: 0xB4DCE6, visible: true, model: BlockModels.CUBE, textures: { all: 'sea_lantern.png' }, hardness: 0.3, material: BlockMaterial.GLASS, light: 15 },
+  [BlockType.SCULK]: { color: 0x0F1E28, visible: true, model: BlockModels.CUBE, textures: { all: 'sculk.png' }, hardness: 0.2, material: BlockMaterial.PLANT },
+
+  // Plants & special
+  [BlockType.TALL_GRASS]: { color: 0x00AA00, visible: true, model: BlockModels.GRASS, transparent: true, opacity: 1.0, textures: { all: 'grass_block_tint.png' }, hardness: 0.0, material: BlockMaterial.PLANT },
+  [BlockType.CACTUS]: { color: 0x66BB6A, visible: true, model: BlockModels.CACTUS, textures: { top: 'cactus_top.png', side: 'cactus_side.png', bottom: 'cactus_top.png' }, hardness: 0.4, material: BlockMaterial.PLANT, damage: 1 },
+  [BlockType.TORCH]: { color: 0xFFD700, visible: true, light: 14, transparent: true, model: BlockModels.TORCH, hardness: 0.0, material: BlockMaterial.PLANT },
+  [BlockType.LANTERN]: { color: 0x50321E, visible: true, model: BlockModels.CUBE, textures: { all: 'lantern.png' }, hardness: 3.5, material: BlockMaterial.METAL, miningLevel: 1, light: 15 },
+  [BlockType.LADDER]: { color: 0x826437, visible: true, model: BlockModels.LADDER, transparent: true, textures: { all: 'ladder.png' }, hardness: 0.4, material: BlockMaterial.WOOD, climbable: true },
+  [BlockType.PUMPKIN]: { color: 0xD28C1E, visible: true, model: BlockModels.CUBE, textures: { top: 'pumpkin_top.png', side: 'pumpkin_side.png', bottom: 'pumpkin_top.png' }, hardness: 1.0, material: BlockMaterial.PLANT },
+  [BlockType.JACK_O_LANTERN]: { color: 0xDC9628, visible: true, model: BlockModels.CUBE, textures: { top: 'pumpkin_top.png', side: 'jack_o_lantern.png', bottom: 'pumpkin_top.png' }, hardness: 1.0, material: BlockMaterial.PLANT, light: 15 },
+  [BlockType.MELON_BLOCK]: { color: 0x78A028, visible: true, model: BlockModels.CUBE, textures: { top: 'melon_top.png', side: 'melon_side.png', bottom: 'melon_top.png' }, hardness: 1.0, material: BlockMaterial.PLANT },
+  [BlockType.HAY_BALE]: { color: 0xC8B450, visible: true, model: BlockModels.CUBE, textures: { top: 'hay_block_top.png', side: 'hay_block_side.png', bottom: 'hay_block_top.png' }, hardness: 0.5, material: BlockMaterial.PLANT },
+  [BlockType.NOTE_BLOCK]: { color: 0x5A3C28, visible: true, model: BlockModels.CUBE, textures: { all: 'note_block.png' }, hardness: 0.8, material: BlockMaterial.WOOD },
+  [BlockType.JUKEBOX]: { color: 0x5A3C28, visible: true, model: BlockModels.CUBE, textures: { top: 'jukebox_top.png', side: 'jukebox_side.png', bottom: 'jukebox_side.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+
+  // Mushroom
+  [BlockType.MUSHROOM_STEM]: { color: 0xD7CCC8, visible: true, model: BlockModels.CUBE, textures: { all: 'mushroom_stem.png' }, hardness: 0.2, material: BlockMaterial.WOOD },
+  [BlockType.MUSHROOM_CAP]: { color: 0xE53935, visible: true, model: BlockModels.CUBE, hardness: 0.2, material: BlockMaterial.WOOD },
+  [BlockType.MUSHROOM_STEM_PORE]: { color: 0xCFCFCF, visible: true, model: BlockModels.CUBE, textures: { all: 'mushroom_block_inside.png' }, hardness: 0.2, material: BlockMaterial.WOOD },
+  [BlockType.RED_MUSHROOM_BLOCK]: { color: 0xC62828, visible: true, model: BlockModels.CUBE, textures: { all: 'red_mushroom_block.png' }, hardness: 0.2, material: BlockMaterial.WOOD },
+  [BlockType.BROWN_MUSHROOM_BLOCK]: { color: 0x5D4037, visible: true, model: BlockModels.CUBE, textures: { all: 'brown_mushroom_block.png' }, hardness: 0.2, material: BlockMaterial.WOOD },
+  [BlockType.SPORE_BLOCK]: { color: 0x9C27B0, visible: true, model: BlockModels.CUBE, textures: { all: 'spore_block.png' }, hardness: 0.2, material: BlockMaterial.PLANT },
+
+  // Magical
+  [BlockType.MAGIC_STONE]: { color: 0x4B0082, visible: true, model: BlockModels.CUBE, textures: { all: 'magic_stone.png' }, hardness: 1.5, material: BlockMaterial.STONE, miningLevel: 1 },
+  [BlockType.MAGIC_DIRT]: { color: 0x8A2BE2, visible: true, model: BlockModels.CUBE, textures: { all: 'dirt.png' }, hardness: 0.5, material: BlockMaterial.DIRT },
+  [BlockType.MAGIC_LOG]: { color: 0x483D8B, visible: true, model: BlockModels.CUBE, textures: { top: 'magic_log_top.png', bottom: 'magic_log_top.png', side: 'magic_log.png' }, hardness: 2.0, material: BlockMaterial.WOOD },
+  [BlockType.MAGIC_LEAVES]: { color: 0x00CED1, visible: true, model: BlockModels.CUBE, transparent: true, opacity: 0.9, textures: { all: 'magic_leaves.png' }, hardness: 0.2, material: BlockMaterial.PLANT },
+  [BlockType.MAGIC_WATER]: { color: 0x00FFFF, visible: true, model: BlockModels.CUBE, transparent: true, opacity: 0.6, textures: { all: 'water_overlay.png' }, hardness: 100, liquid: true },
+  [BlockType.CLOUD]: { color: 0xFFFFFF, visible: true, model: BlockModels.CUBE, transparent: true, opacity: 0.8, hardness: 0.0 },
+  [BlockType.CARROT]: { color: 0xFFA500, visible: false },
 };
+
+// Block drop overrides
+export const BlockDrops = {
+  [BlockType.STONE]: 'COBBLESTONE',
+  [BlockType.GRASS]: 'DIRT',
+  [BlockType.COAL_ORE]: 'COAL',
+  [BlockType.DEEPSLATE_COAL_ORE]: 'COAL',
+  [BlockType.DIAMOND_ORE]: 'DIAMOND',
+  [BlockType.DEEPSLATE_DIAMOND_ORE]: 'DIAMOND',
+  [BlockType.EMERALD_ORE]: 'EMERALD',
+  [BlockType.DEEPSLATE_EMERALD_ORE]: 'EMERALD',
+  [BlockType.LAPIS_ORE]: 'LAPIS_LAZULI',
+  [BlockType.DEEPSLATE_LAPIS_ORE]: 'LAPIS_LAZULI',
+  [BlockType.REDSTONE_ORE]: 'REDSTONE_DUST',
+  [BlockType.DEEPSLATE_REDSTONE_ORE]: 'REDSTONE_DUST',
+  [BlockType.NETHER_QUARTZ_ORE]: 'QUARTZ',
+  [BlockType.IRON_ORE]: 'RAW_IRON',
+  [BlockType.DEEPSLATE_IRON_ORE]: 'RAW_IRON',
+  [BlockType.GOLD_ORE]: 'RAW_GOLD',
+  [BlockType.DEEPSLATE_GOLD_ORE]: 'RAW_GOLD',
+  [BlockType.COPPER_ORE]: 'RAW_COPPER',
+  [BlockType.DEEPSLATE_COPPER_ORE]: 'RAW_COPPER',
+  [BlockType.GLASS]: null, // drops nothing
+};
+
+export function isTransparent(blockType) {
+  if (blockType === BlockType.AIR || blockType === BlockType.WATER || blockType === BlockType.MAGIC_WATER) return true;
+  if (blockType === BlockType.TALL_GRASS || blockType === BlockType.TORCH || blockType === BlockType.LADDER) return true;
+  const def = BlockDefinitions[blockType];
+  return def ? !!def.transparent : true;
+}
+
+export function isLiquid(blockType) {
+  return blockType === BlockType.WATER || blockType === BlockType.LAVA || blockType === BlockType.MAGIC_WATER;
+}
+
+export function isSolid(blockType) {
+  if (blockType === BlockType.AIR) return false;
+  if (isLiquid(blockType)) return false;
+  if (blockType === BlockType.TALL_GRASS || blockType === BlockType.TORCH || blockType === BlockType.LADDER) return false;
+  return true;
+}

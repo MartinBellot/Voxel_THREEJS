@@ -5,11 +5,12 @@ import { Physics } from './Physics.js';
 import { BlockType } from '../World/Block.js';
 import { Inventory } from '../Inventory.js';
 import { InventoryUI } from '../InventoryUI.js';
-import { ItemDefinitions, ItemType } from '../Item.js';
+import { ItemDefinitions, ItemType, ItemCategory } from '../Item.js';
 import { DroppedItem } from '../World/DroppedItem.js';
 import { HeldItem } from './HeldItem.js';
 import { PlayerMesh } from './PlayerMesh.js';
 import { Bow } from '../Items/Bow.js';
+import { BlockDefinitions, BlockDrops } from '../World/Block.js';
 
 export class Player {
   constructor(game) {
@@ -78,6 +79,35 @@ export class Player {
     this.gamemode = 'survival';
     this.health = 20;
     this.maxHealth = 20;
+
+    // Hunger system
+    this.hunger = 20;
+    this.maxHunger = 20;
+    this.saturation = 5.0;
+    this.exhaustion = 0;
+    this.hungerTimer = 0;
+    this.regenTimer = 0;
+    this.starvationTimer = 0;
+
+    // XP system
+    this.xp = 0;
+    this.level = 0;
+    this.xpForNextLevel = 7; // Levels 0-16 need 2*level + 7
+
+    // Damage cooldown
+    this.damageCooldown = 0;
+    this.lastDamageTime = 0;
+
+    // Spawn point (set by bed)
+    this.spawnPoint = new THREE.Vector3(0, 80, 0);
+
+    // Block breaking progress
+    this.breakingBlock = null; // {x, y, z}
+    this.breakingProgress = 0;
+    this.breakingTime = 0; // total time needed
+    this.isBreaking = false;
+    this.breakOverlay = null;
+    this.setupBreakOverlay();
   }
 
   setGamemode(mode) {
@@ -88,8 +118,12 @@ export class Player {
         this.flyMode = false;
         this.canJump = true; // Reset jump ability
         document.getElementById('health-bar-container').style.display = 'flex';
+        const hungerContainer = document.getElementById('hunger-bar-container');
+        if (hungerContainer) hungerContainer.style.display = 'flex';
     } else {
         document.getElementById('health-bar-container').style.display = 'none';
+        const hungerContainer = document.getElementById('hunger-bar-container');
+        if (hungerContainer) hungerContainer.style.display = 'none';
     }
     
     // Update UI
@@ -100,8 +134,230 @@ export class Player {
   }
 
   setHealth(value) {
-      this.health = value;
+      this.health = Math.max(0, Math.min(this.maxHealth, value));
       this.updateHealthUI();
+      if (this.health <= 0) {
+        this.onDeath();
+      }
+  }
+
+  takeDamage(amount) {
+      if (this.gamemode !== 'survival') return;
+      const now = performance.now();
+      if (now - this.lastDamageTime < 500) return; // 0.5s invincibility
+      this.lastDamageTime = now;
+
+      // Armor reduction
+      const armorPoints = this.getArmorPoints();
+      const reducedDamage = Math.max(1, amount - armorPoints * 0.08 * amount);
+      this.setHealth(this.health - Math.floor(reducedDamage));
+
+      // Damage particles
+      if (this.game.particleSystem) {
+        const pos = this.camera.position;
+        this.game.particleSystem.spawnDamage(pos.x, pos.y - 0.5, pos.z);
+      }
+
+      // Damage sound
+      if (this.game.soundSystem) {
+        this.game.soundSystem.playDamage();
+      }
+  }
+
+  getArmorPoints() {
+    let total = 0;
+    // Armor slots: 36-39 (helmet, chestplate, leggings, boots)
+    for (let i = 36; i <= 39; i++) {
+      const item = this.inventory.getItem(i);
+      if (item) {
+        const def = ItemDefinitions[item.type];
+        if (def && def.armorPoints) {
+          total += def.armorPoints;
+        }
+      }
+    }
+    return total;
+  }
+
+  eatFood(itemType) {
+    const def = ItemDefinitions[itemType];
+    if (!def || !def.foodValue) return false;
+    if (this.hunger >= this.maxHunger) return false;
+
+    this.hunger = Math.min(this.maxHunger, this.hunger + def.foodValue);
+    this.saturation = Math.min(this.hunger, this.saturation + (def.saturation || 0));
+    this.updateHungerUI();
+
+    // Eat sound
+    if (this.game.soundSystem) {
+      this.game.soundSystem.playEat();
+    }
+
+    return true;
+  }
+
+  useBed(x, y, z) {
+    // Set spawn point
+    this.spawnPoint.set(x, y + 1, z);
+
+    // Can only sleep at night (time 12000-24000)
+    if (this.game.time >= 12000 || this.game.time < 100) {
+      // Skip to morning
+      this.game.time = 100;
+      // Show brief message
+      const msg = document.createElement('div');
+      msg.textContent = 'Spawn point set. Good morning!';
+      msg.style.cssText = 'position:fixed;top:30%;left:50%;transform:translateX(-50%);color:white;font-size:18px;font-family:monospace;background:rgba(0,0,0,0.6);padding:10px 20px;border-radius:4px;z-index:1000;pointer-events:none;';
+      document.body.appendChild(msg);
+      setTimeout(() => msg.remove(), 3000);
+    } else {
+      // Daytime - just set spawn
+      const msg = document.createElement('div');
+      msg.textContent = 'Spawn point set. You can only sleep at night.';
+      msg.style.cssText = 'position:fixed;top:30%;left:50%;transform:translateX(-50%);color:white;font-size:18px;font-family:monospace;background:rgba(0,0,0,0.6);padding:10px 20px;border-radius:4px;z-index:1000;pointer-events:none;';
+      document.body.appendChild(msg);
+      setTimeout(() => msg.remove(), 3000);
+    }
+  }
+
+  addExhaustion(amount) {
+    this.exhaustion += amount;
+    while (this.exhaustion >= 4) {
+      this.exhaustion -= 4;
+      if (this.saturation > 0) {
+        this.saturation = Math.max(0, this.saturation - 1);
+      } else {
+        this.hunger = Math.max(0, this.hunger - 1);
+        this.updateHungerUI();
+      }
+    }
+  }
+
+  updateSurvival(delta) {
+    if (this.gamemode !== 'survival') return;
+
+    // Sprinting exhaustion
+    if (this.isSprinting && (this.moveForward || this.moveBackward || this.moveLeft || this.moveRight)) {
+      this.addExhaustion(0.1 * delta);
+    }
+
+    // Can't sprint with low hunger
+    if (this.hunger <= 6) {
+      this.isSprinting = false;
+    }
+
+    // Natural regeneration (when hunger >= 18 and health < 20)
+    if (this.hunger >= 18 && this.health < this.maxHealth) {
+      this.regenTimer += delta;
+      if (this.regenTimer >= 0.5) {
+        this.regenTimer = 0;
+        this.setHealth(this.health + 1);
+        this.addExhaustion(6);
+      }
+    } else {
+      this.regenTimer = 0;
+    }
+
+    // Starvation (when hunger = 0)
+    if (this.hunger <= 0) {
+      this.starvationTimer += delta;
+      if (this.starvationTimer >= 4) {
+        this.starvationTimer = 0;
+        if (this.health > 1) { // Don't kill on easy mode equiv
+          this.takeDamage(1);
+        }
+      }
+    } else {
+      this.starvationTimer = 0;
+    }
+  }
+
+  updateHungerUI() {
+    const container = document.getElementById('hunger-bar');
+    if (!container) return;
+    container.innerHTML = '';
+    const drumsticks = 10;
+    for (let i = 0; i < drumsticks; i++) {
+      const d = document.createElement('div');
+      d.className = 'drumstick';
+      const value = (i + 1) * 2;
+      if (this.hunger >= value) {
+        // full
+      } else if (this.hunger >= value - 1) {
+        d.classList.add('half');
+      } else {
+        d.classList.add('empty');
+      }
+      container.appendChild(d);
+    }
+  }
+
+  // XP System
+  addXP(amount) {
+    this.xp += amount;
+    while (this.xp >= this.xpForNextLevel) {
+      this.xp -= this.xpForNextLevel;
+      this.level++;
+      this.xpForNextLevel = this.getXPForLevel(this.level);
+    }
+    this.updateXPUI();
+    if (this.game.soundSystem) {
+      this.game.soundSystem.playXP();
+    }
+  }
+
+  getXPForLevel(level) {
+    if (level < 16) return 2 * level + 7;
+    if (level < 31) return 5 * level - 38;
+    return 9 * level - 158;
+  }
+
+  updateXPUI() {
+    const fill = document.getElementById('xp-bar-fill');
+    const levelEl = document.getElementById('xp-level');
+    const container = document.getElementById('xp-bar-container');
+    
+    if (container) {
+      container.style.display = this.gamemode === 'survival' ? 'block' : 'none';
+    }
+    if (fill) {
+      const pct = this.xpForNextLevel > 0 ? (this.xp / this.xpForNextLevel) * 100 : 0;
+      fill.style.width = pct + '%';
+    }
+    if (levelEl) {
+      levelEl.textContent = this.level;
+    }
+  }
+
+  onDeath() {
+    // Drop all items
+    const pos = this.camera.position;
+    for (let i = 0; i < 36; i++) {
+      const item = this.inventory.getItem(i);
+      if (item) {
+        const dropped = new DroppedItem(this.game, pos.x, pos.y, pos.z, item.type, item.count);
+        this.game.droppedItems.push(dropped);
+        this.inventory.slots[i] = null;
+      }
+    }
+
+    // Reset state
+    this.health = this.maxHealth;
+    this.hunger = 20;
+    this.saturation = 5.0;
+    this.exhaustion = 0;
+    this.xp = 0;
+    this.level = 0;
+    this.xpForNextLevel = 7;
+
+    // Respawn at spawn point (bed) or default
+    this.camera.position.copy(this.spawnPoint);
+    this.velocity.set(0, 0, 0);
+    
+    this.updateHealthUI();
+    this.updateHungerUI();
+    this.updateXPUI();
+    this.inventoryUI.updateHotbar();
   }
 
   updateHealthUI() {
@@ -140,6 +396,211 @@ export class Player {
     this.highlightMesh = new THREE.LineSegments(edges, material);
     this.highlightMesh.visible = false;
     this.game.scene.add(this.highlightMesh);
+  }
+
+  setupBreakOverlay() {
+    const geometry = new THREE.BoxGeometry(1.005, 1.005, 1.005);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0,
+      depthTest: true,
+      side: THREE.FrontSide,
+    });
+    this.breakOverlay = new THREE.Mesh(geometry, material);
+    this.breakOverlay.visible = false;
+    this.game.scene.add(this.breakOverlay);
+  }
+
+  getBlockBreakTime(blockType) {
+    const blockDef = BlockDefinitions[blockType];
+    if (!blockDef) return 0.5;
+    if (blockDef.hardness <= 0) return blockDef.hardness < 0 ? Infinity : 0.05;
+
+    const selectedItem = this.inventory.getItem(this.inventory.selectedSlot);
+    const itemType = selectedItem ? selectedItem.type : null;
+    const itemDef = itemType ? ItemDefinitions[itemType] : null;
+
+    let speedMult = 1;
+    let canHarvest = true;
+
+    // Check if tool is needed and correct
+    if (blockDef.miningLevel && blockDef.miningLevel > 0) {
+      if (!itemDef || !itemDef.toolType) {
+        canHarvest = false;
+      } else {
+        const effectiveTools = {
+          stone: 'PICKAXE', metal: 'PICKAXE',
+          dirt: 'SHOVEL', sand: 'SHOVEL',
+          wood: 'AXE',
+          wool: 'SHEARS', plant: 'SHEARS',
+        };
+        const needed = effectiveTools[blockDef.material] || 'PICKAXE';
+        if (itemDef.toolType === needed && itemDef.miningLevel >= blockDef.miningLevel) {
+          speedMult = itemDef.miningSpeed;
+        } else if (itemDef.toolType === needed) {
+          // Right tool but too low level
+          canHarvest = false;
+        } else {
+          canHarvest = false;
+        }
+      }
+    } else if (itemDef && itemDef.toolType) {
+      const effectiveTools = {
+        stone: 'PICKAXE', metal: 'PICKAXE',
+        dirt: 'SHOVEL', sand: 'SHOVEL',
+        wood: 'AXE',
+      };
+      const needed = effectiveTools[blockDef.material];
+      if (itemDef.toolType === needed) {
+        speedMult = itemDef.miningSpeed;
+      }
+    }
+
+    return blockDef.hardness * (canHarvest ? 1.5 : 5.0) / speedMult;
+  }
+
+  startBreaking() {
+    if (!this.highlightMesh.visible || !this.lookingAtBlock) return;
+    const { x, y, z } = this.lookingAtBlock;
+    const blockType = this.game.world.getBlock(x, y, z);
+    if (!blockType || blockType === BlockType.AIR) return;
+    if (blockType === BlockType.BEDROCK) return;
+
+    // Creative mode: instant break
+    if (this.gamemode === 'creative') {
+      this.instantBreak(x, y, z, blockType);
+      this._mouseDown = false;
+      return;
+    }
+
+    const breakTime = this.getBlockBreakTime(blockType);
+    if (breakTime === Infinity) return;
+    if (breakTime <= 0.05) {
+      this.instantBreak(x, y, z, blockType);
+      this._mouseDown = false;
+      return;
+    }
+
+    this.breakingBlock = { x, y, z };
+    this.breakingProgress = 0;
+    this.breakingTime = breakTime;
+    this.isBreaking = true;
+  }
+
+  updateBreaking(delta) {
+    if (!this.isBreaking || !this.breakingBlock) return;
+
+    // Check if still looking at the same block
+    if (!this.lookingAtBlock ||
+        this.lookingAtBlock.x !== this.breakingBlock.x ||
+        this.lookingAtBlock.y !== this.breakingBlock.y ||
+        this.lookingAtBlock.z !== this.breakingBlock.z) {
+      this.cancelBreaking();
+      return;
+    }
+
+    this.breakingProgress += delta;
+    const progress = Math.min(this.breakingProgress / this.breakingTime, 1);
+
+    // Update break overlay
+    if (this.breakOverlay) {
+      this.breakOverlay.visible = true;
+      this.breakOverlay.position.set(
+        this.breakingBlock.x + 0.5,
+        this.breakingBlock.y + 0.5,
+        this.breakingBlock.z + 0.5
+      );
+      this.breakOverlay.material.opacity = progress * 0.6;
+      this.breakOverlay.material.color.setHex(
+        progress < 0.5 ? 0xffffff : (progress < 0.8 ? 0xffaa00 : 0xff0000)
+      );
+    }
+
+    // Block broken
+    if (this.breakingProgress >= this.breakingTime) {
+      const { x, y, z } = this.breakingBlock;
+      const blockType = this.game.world.getBlock(x, y, z);
+      this.instantBreak(x, y, z, blockType);
+      this.cancelBreaking();
+    }
+  }
+
+  cancelBreaking() {
+    this.isBreaking = false;
+    this.breakingBlock = null;
+    this.breakingProgress = 0;
+    if (this.breakOverlay) {
+      this.breakOverlay.visible = false;
+    }
+  }
+
+  instantBreak(x, y, z, blockType) {
+    this.game.world.setBlock(x, y, z, BlockType.AIR);
+
+    // Spawn break particles
+    const blockDef = BlockDefinitions[blockType];
+    if (blockDef && this.game.particleSystem) {
+      this.game.particleSystem.spawnBlockBreak(x, y, z, blockDef.color || 0x888888);
+    }
+
+    // Block break sound
+    if (blockDef && this.game.soundSystem) {
+      this.game.soundSystem.playBlockBreak(blockDef.material || 'stone');
+    }
+
+    // Determine drop
+    if (blockType && blockType !== BlockType.AIR) {
+      let dropType = blockType;
+      if (BlockDrops[blockType] !== undefined) {
+        if (BlockDrops[blockType] === null) {
+          dropType = null; // No drop (glass)
+        } else {
+          // Resolve item type from name
+          dropType = ItemType[BlockDrops[blockType]] || blockType;
+        }
+      }
+      if (dropType !== null) {
+        const item = new DroppedItem(this.game, x, y, z, dropType);
+        this.game.droppedItems.push(item);
+      }
+    }
+
+    // Tool durability
+    const selectedItem = this.inventory.getItem(this.inventory.selectedSlot);
+    if (selectedItem && this.gamemode === 'survival') {
+      const itemDef = ItemDefinitions[selectedItem.type];
+      if (itemDef && itemDef.durability) {
+        selectedItem.durability = (selectedItem.durability || itemDef.durability) - 1;
+        if (selectedItem.durability <= 0) {
+          this.inventory.slots[this.inventory.selectedSlot] = null;
+          this.inventoryUI.updateHotbar();
+        }
+      }
+    }
+
+    // Exhaustion from breaking blocks
+    this.addExhaustion(0.005);
+
+    // XP from mining ores
+    if (this.gamemode === 'survival') {
+      const oreXP = {
+        [BlockType.COAL_ORE]: 1, [BlockType.DEEPSLATE_COAL_ORE]: 1,
+        [BlockType.IRON_ORE]: 1, [BlockType.DEEPSLATE_IRON_ORE]: 1,
+        [BlockType.COPPER_ORE]: 1, [BlockType.DEEPSLATE_COPPER_ORE]: 1,
+        [BlockType.GOLD_ORE]: 1, [BlockType.DEEPSLATE_GOLD_ORE]: 1,
+        [BlockType.LAPIS_ORE]: 3, [BlockType.DEEPSLATE_LAPIS_ORE]: 3,
+        [BlockType.REDSTONE_ORE]: 2, [BlockType.DEEPSLATE_REDSTONE_ORE]: 2,
+        [BlockType.DIAMOND_ORE]: 5, [BlockType.DEEPSLATE_DIAMOND_ORE]: 5,
+        [BlockType.EMERALD_ORE]: 5, [BlockType.DEEPSLATE_EMERALD_ORE]: 5,
+      };
+      const xpAmount = oreXP[blockType];
+      if (xpAmount) this.addXP(xpAmount);
+    }
+
+    if (this.game.networkManager && this.game.networkManager.connected) {
+      this.game.networkManager.sendBlockUpdate(x, y, z, BlockType.AIR);
+    }
   }
 
   // setupUI removed - handled by InventoryUI
@@ -307,13 +768,77 @@ export class Player {
     });
 
     document.addEventListener('mousedown', (event) => {
+      if (event.button === 1) event.preventDefault(); // Prevent auto-scroll on middle click
       if (this.controls.isLocked && !this.inventoryUI.isOpen) {
-        if (event.button === 0) { // Clic gauche
-          this.breakBlock();
+        if (event.button === 0) { // Clic gauche - attack mob or break block
+          // Try attacking entity first
+          if (!this.game.attackEntity()) {
+            this.startBreaking();
+          }
+          this._mouseDown = true;
+        } else if (event.button === 1) { // Middle click - pick block (creative)
+          if (this.gamemode === 'creative' && this.lookingAtBlock) {
+            const { x, y, z } = this.lookingAtBlock;
+            const blockType = this.game.world.getBlock(x, y, z);
+            if (blockType && blockType !== BlockType.AIR && ItemDefinitions[blockType]) {
+              this.inventory.setItem(this.inventory.selectedSlot, blockType, 64);
+              this.inventoryUI.updateHotbar();
+            }
+          }
         } else if (event.button === 2) { // Clic droit
+          // Check if holding food
+          const held = this.inventory.getItem(this.inventory.selectedSlot);
+          if (held) {
+            const heldDef = ItemDefinitions[held.type];
+            if (heldDef && heldDef.foodValue && this.hunger < this.maxHunger) {
+              if (this.eatFood(held.type)) {
+                this.inventory.removeItem(this.inventory.selectedSlot, 1);
+                this.inventoryUI.updateHotbar();
+              }
+              return;
+            }
+          }
           if (this.currentItemLogic) {
               this.currentItemLogic.onUseStart(this);
           } else {
+              // Check if right-clicking an interactive block
+              const intersection = this.getIntersection();
+              if (intersection) {
+                const hitPoint = intersection.point.clone().sub(intersection.face.normal.clone().multiplyScalar(0.5));
+                const bx = Math.floor(hitPoint.x);
+                const by = Math.floor(hitPoint.y);
+                const bz = Math.floor(hitPoint.z);
+                const clickedBlock = this.game.world.getBlock(bx, by, bz);
+                
+                if (clickedBlock === BlockType.CRAFTING_TABLE && this.game.craftingUI) {
+                  this.game.craftingUI.openCraftingTable();
+                  return;
+                }
+                if (clickedBlock === BlockType.FURNACE && this.game.craftingUI) {
+                  this.game.craftingUI.openFurnace(bx, by, bz);
+                  return;
+                }
+                if (clickedBlock === BlockType.CHEST && this.game.craftingUI) {
+                  this.game.craftingUI.openChest(bx, by, bz);
+                  return;
+                }
+                if (clickedBlock === BlockType.BED) {
+                  this.useBed(bx, by, bz);
+                  return;
+                }
+                if (clickedBlock === BlockType.ENCHANTING_TABLE && this.game.craftingUI) {
+                  this.game.craftingUI.openEnchanting();
+                  return;
+                }
+                // TNT ignition with flint and steel
+                if (clickedBlock === BlockType.TNT) {
+                  const heldItem = this.inventory.getItem(this.inventory.selectedSlot);
+                  if (heldItem && heldItem.type === ItemType.FLINT_AND_STEEL) {
+                    this.game.igniteTNT(bx, by, bz);
+                    return;
+                  }
+                }
+              }
               this.placeBlock();
           }
         }
@@ -321,6 +846,10 @@ export class Player {
     });
 
     document.addEventListener('mouseup', (event) => {
+        if (event.button === 0) {
+          this._mouseDown = false;
+          this.cancelBreaking();
+        }
         if (this.controls.isLocked && !this.inventoryUI.isOpen) {
             if (event.button === 2) { // Clic droit
                 if (this.currentItemLogic) {
@@ -457,6 +986,9 @@ export class Player {
       if (chunk.meshes) {
         Object.values(chunk.meshes).forEach(mesh => meshes.push(mesh));
       }
+      if (chunk.transparentMesh) {
+        meshes.push(chunk.transparentMesh);
+      }
     });
     
     const intersects = this.raycaster.intersectObjects(meshes);
@@ -467,27 +999,8 @@ export class Player {
   }
 
   breakBlock() {
-    if (this.highlightMesh.visible) {
-      const position = this.highlightMesh.position;
-      const x = Math.floor(position.x);
-      const y = Math.floor(position.y);
-      const z = Math.floor(position.z);
-      
-      // Get block type before removing
-      const blockType = this.game.world.getBlock(x, y, z);
-
-      this.game.world.setBlock(x, y, z, BlockType.AIR);
-      
-      // Drop item
-      if (blockType && blockType !== BlockType.AIR) {
-          const item = new DroppedItem(this.game, x, y, z, blockType);
-          this.game.droppedItems.push(item);
-      }
-
-      if (this.game.networkManager && this.game.networkManager.connected) {
-          this.game.networkManager.sendBlockUpdate(x, y, z, BlockType.AIR);
-      }
-    }
+    // Legacy method for mobile tap - just start and instantly check
+    this.startBreaking();
   }
 
   placeBlock() {
@@ -518,10 +1031,26 @@ export class Player {
         }
 
         if (selectedItem && selectedItem.type === ItemType.SPAWN_CHICKEN) {
-            // Spawn Chicken
-            // Center of the block
             const spawnPos = new THREE.Vector3(x + 0.5, y, z + 0.5);
             this.game.spawnEntity('chicken', spawnPos);
+            return;
+        }
+
+        if (selectedItem && selectedItem.type === ItemType.SPAWN_ZOMBIE) {
+            const spawnPos = new THREE.Vector3(x + 0.5, y, z + 0.5);
+            this.game.spawnEntity('zombie', spawnPos);
+            return;
+        }
+
+        if (selectedItem && selectedItem.type === ItemType.SPAWN_SKELETON) {
+            const spawnPos = new THREE.Vector3(x + 0.5, y, z + 0.5);
+            this.game.spawnEntity('skeleton', spawnPos);
+            return;
+        }
+
+        if (selectedItem && selectedItem.type === ItemType.SPAWN_CREEPER) {
+            const spawnPos = new THREE.Vector3(x + 0.5, y, z + 0.5);
+            this.game.spawnEntity('creeper', spawnPos);
             return;
         }
 
@@ -558,6 +1087,12 @@ export class Player {
         
         if (blockType && itemDef && itemDef.isPlaceable) {
           this.game.world.setBlock(x, y, z, blockType);
+
+          // Place sound
+          const placedDef = BlockDefinitions[blockType];
+          if (placedDef && this.game.soundSystem) {
+            this.game.soundSystem.playBlockPlace(placedDef.material || 'stone');
+          }
           
           if (this.game.networkManager && this.game.networkManager.connected) {
               this.game.networkManager.sendBlockUpdate(x, y, z, blockType);
@@ -608,6 +1143,14 @@ export class Player {
     // Actually, let's just use controlsObject for logic.
 
     this.updateHighlight();
+
+    // Update block breaking
+    if (this._mouseDown && this.isBreaking) {
+      this.updateBreaking(delta);
+    } else if (this._mouseDown && !this.isBreaking && this.lookingAtBlock) {
+      // Re-start breaking if we moved to a new block while holding
+      this.startBreaking();
+    }
 
     // Update Held Item
     const selectedItem = this.inventory.getItem(this.inventory.selectedSlot);
@@ -707,6 +1250,9 @@ export class Player {
 
       // Mise à jour physique
       this.physics.update(delta);
+      
+      // Survival mechanics
+      this.updateSurvival(delta);
       
       // Network Update (20 times per second)
       const now = performance.now();

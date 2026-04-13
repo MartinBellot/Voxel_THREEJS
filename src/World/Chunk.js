@@ -15,7 +15,7 @@ export class Chunk {
     this.lod = 0; // 0 = High, 1 = Low
     
     // Minimap optimization
-    this.topMap = new Uint8Array(this.size * this.size); // Stores Block ID of top block
+    this.topMap = new Uint16Array(this.size * this.size); // Stores Block ID of top block
     this.heightMap = new Int16Array(this.size * this.size); // Stores Y of top block
     this.topMap.fill(0);
     this.heightMap.fill(-1);
@@ -109,7 +109,11 @@ export class Chunk {
   }
 
   isBlockOpaque(id) {
-    if (id === BlockType.AIR || id === BlockType.WATER || id === BlockType.TORCH || id === BlockType.CACTUS || id === BlockType.LEAVES || id === BlockType.PINE_LEAVES || id === BlockType.MUSHROOM_STEM || id === BlockType.MUSHROOM_CAP || id === BlockType.SAPLING || id === BlockType.FLOWER || id === BlockType.CLOUD || id === BlockType.TALL_GRASS) return false;
+    if (id === BlockType.AIR) return false;
+    const def = BlockDefinitions[id];
+    if (!def) return false;
+    if (def.transparent || def.liquid) return false;
+    if (def.model && (def.model === BlockModels.TORCH || def.model === BlockModels.CROSS || def.model === BlockModels.GRASS || def.model === BlockModels.LADDER)) return false;
     return true;
   }
 
@@ -145,6 +149,74 @@ export class Chunk {
           id: this.topMap[index],
           y: this.heightMap[index]
       };
+  }
+
+  // Determine ore or stone variant at this position
+  getOreOrStone(worldX, y, worldZ) {
+    const isDeepslate = y < 16;
+    const baseStone = isDeepslate ? BlockType.DEEPSLATE : BlockType.STONE;
+
+    // Stone variants (granite, diorite, andesite) in large blobs
+    if (!isDeepslate) {
+      const variantNoise = this.world.noise3D(worldX * 0.04, y * 0.04, worldZ * 0.04);
+      const variantType = this.world.noise3D(worldX * 0.02 + 100, y * 0.02, worldZ * 0.02 + 100);
+      if (variantNoise > 0.55) {
+        if (variantType > 0.3) return BlockType.GRANITE;
+        if (variantType > -0.3) return BlockType.DIORITE;
+        return BlockType.ANDESITE;
+      }
+    }
+
+    // Ore generation using separate noise octaves per ore type
+    // Diamond: y < 16, very rare
+    if (y < 16) {
+      const n = this.world.noise3D(worldX * 0.15 + 1000, y * 0.15, worldZ * 0.15 + 1000);
+      if (n > 0.88) return isDeepslate ? BlockType.DEEPSLATE_DIAMOND_ORE : BlockType.DIAMOND_ORE;
+    }
+
+    // Emerald: y < 32, very rare, mountain only checked by caller
+    if (y < 32) {
+      const n = this.world.noise3D(worldX * 0.15 + 2000, y * 0.15, worldZ * 0.15 + 2000);
+      if (n > 0.9) return isDeepslate ? BlockType.DEEPSLATE_EMERALD_ORE : BlockType.EMERALD_ORE;
+    }
+
+    // Gold: y < 32
+    if (y < 32) {
+      const n = this.world.noise3D(worldX * 0.12 + 3000, y * 0.12, worldZ * 0.12 + 3000);
+      if (n > 0.85) return isDeepslate ? BlockType.DEEPSLATE_GOLD_ORE : BlockType.GOLD_ORE;
+    }
+
+    // Redstone: y < 16
+    if (y < 16) {
+      const n = this.world.noise3D(worldX * 0.12 + 4000, y * 0.12, worldZ * 0.12 + 4000);
+      if (n > 0.82) return isDeepslate ? BlockType.DEEPSLATE_REDSTONE_ORE : BlockType.REDSTONE_ORE;
+    }
+
+    // Lapis: y 0-32
+    if (y < 32) {
+      const n = this.world.noise3D(worldX * 0.12 + 5000, y * 0.12, worldZ * 0.12 + 5000);
+      if (n > 0.87) return isDeepslate ? BlockType.DEEPSLATE_LAPIS_ORE : BlockType.LAPIS_ORE;
+    }
+
+    // Copper: y 0-96
+    if (y < 96) {
+      const n = this.world.noise3D(worldX * 0.1 + 6000, y * 0.1, worldZ * 0.1 + 6000);
+      if (n > 0.83) return isDeepslate ? BlockType.DEEPSLATE_COPPER_ORE : BlockType.COPPER_ORE;
+    }
+
+    // Iron: y 0-64
+    if (y < 64) {
+      const n = this.world.noise3D(worldX * 0.1 + 7000, y * 0.1, worldZ * 0.1 + 7000);
+      if (n > 0.8) return isDeepslate ? BlockType.DEEPSLATE_IRON_ORE : BlockType.IRON_ORE;
+    }
+
+    // Coal: y 0-128, most common
+    if (y < 128) {
+      const n = this.world.noise3D(worldX * 0.1, y * 0.1, worldZ * 0.1);
+      if (n > 0.78) return isDeepslate ? BlockType.DEEPSLATE_COAL_ORE : BlockType.COAL_ORE;
+    }
+
+    return baseStone;
   }
 
   setLOD(level) {
@@ -217,7 +289,7 @@ export class Chunk {
   generateData() {
     // ...existing code...
     // Initialise le tableau de données
-    this.data = new Int8Array(this.size * this.height * this.size);
+    this.data = new Int16Array(this.size * this.height * this.size);
     
     for (let x = 0; x < this.size; x++) {
       for (let z = 0; z < this.size; z++) {
@@ -314,12 +386,24 @@ export class Chunk {
                    } else if (y > surfaceHeight - 4) {
                        this.data[index] = BlockType.STONE;
                    } else {
-                       const coalNoise = this.world.noise3D(worldX * 0.1, y * 0.1, worldZ * 0.1);
-                       if (coalNoise > 0.8) {
-                           this.data[index] = BlockType.COAL_ORE;
-                       } else {
-                           this.data[index] = BlockType.STONE;
-                       }
+                       this.data[index] = this.getOreOrStone(worldX, y, worldZ);
+                   }
+               } else if (biome === 'Swamp') {
+                   if (y === surfaceHeight - 1) {
+                     // Swamp uses darker grass tone (still GRASS block, color handled by biome)
+                     this.data[index] = BlockType.GRASS;
+                   } else if (y > surfaceHeight - 4) {
+                     this.data[index] = (y === surfaceHeight - 2) ? BlockType.CLAY : BlockType.DIRT;
+                   } else {
+                     this.data[index] = this.getOreOrStone(worldX, y, worldZ);
+                   }
+               } else if (biome === 'Savanna') {
+                   if (y === surfaceHeight - 1) {
+                     this.data[index] = BlockType.GRASS;
+                   } else if (y > surfaceHeight - 4) {
+                     this.data[index] = BlockType.DIRT;
+                   } else {
+                     this.data[index] = this.getOreOrStone(worldX, y, worldZ);
                    }
                } else {
                    if (y === surfaceHeight - 1) {
@@ -327,12 +411,7 @@ export class Chunk {
                    } else if (y > surfaceHeight - 4) {
                      this.data[index] = BlockType.DIRT;
                    } else {
-                     const coalNoise = this.world.noise3D(worldX * 0.1, y * 0.1, worldZ * 0.1);
-                     if (coalNoise > 0.8) {
-                         this.data[index] = BlockType.COAL_ORE;
-                     } else {
-                         this.data[index] = BlockType.STONE;
-                     }
+                     this.data[index] = this.getOreOrStone(worldX, y, worldZ);
                    }
                }
              }
@@ -410,6 +489,9 @@ export class Chunk {
     
     // Passe de décoration
     this.decorateChunk();
+
+    // Structure generation
+    this.generateStructures();
 
     // Final bounds check (in case decoration added blocks higher/lower)
     // We can just add a safety margin or scan. 
@@ -553,6 +635,86 @@ export class Chunk {
                 if (hasMushroom) {
                     this.addMushroom(x, surfaceHeight, z);
                 }
+            } else if (biome === 'Plains' && !isVolcano) {
+                const pseudoRandom = Math.abs(Math.sin(worldX * 12.9898 + worldZ * 78.233) * 43758.5453) % 1;
+                const treeNoise = this.world.noise2D(worldX * 0.1, worldZ * 0.1);
+                
+                // Tall grass everywhere
+                if (this.getBlock(x, surfaceHeight, z) === BlockType.AIR) {
+                    if (pseudoRandom > 0.4) {
+                        const index = this.getBlockIndex(x, surfaceHeight, z);
+                        this.data[index] = BlockType.TALL_GRASS;
+                    } else if (pseudoRandom < 0.02) {
+                        // Occasional flowers (tall grass as placeholder)
+                        const index = this.getBlockIndex(x, surfaceHeight, z);
+                        this.data[index] = BlockType.TALL_GRASS;
+                    }
+                }
+                
+                // Sparse oak trees
+                if (treeNoise > 0.6 && pseudoRandom > 0.97) {
+                    this.generateOakTree(x, surfaceHeight, z);
+                }
+            } else if (biome === 'Birch Forest' && !isVolcano) {
+                const pseudoRandom = Math.abs(Math.sin(worldX * 12.9898 + worldZ * 78.233) * 43758.5453) % 1;
+                const treeNoise = this.world.noise2D(worldX * 0.1, worldZ * 0.1);
+                
+                // Tall grass
+                if (!treeNoise > 0.3 && this.getBlock(x, surfaceHeight, z) === BlockType.AIR) {
+                    if (pseudoRandom > 0.5) {
+                        const index = this.getBlockIndex(x, surfaceHeight, z);
+                        this.data[index] = BlockType.TALL_GRASS;
+                    }
+                }
+                
+                // Birch trees - dense
+                if (treeNoise > 0.3 && pseudoRandom > 0.85) {
+                    this.generateBirchTree(x, surfaceHeight, z);
+                }
+            } else if (biome === 'Jungle' && !isVolcano) {
+                const pseudoRandom = Math.abs(Math.sin(worldX * 12.9898 + worldZ * 78.233) * 43758.5453) % 1;
+                const treeNoise = this.world.noise2D(worldX * 0.1, worldZ * 0.1);
+                
+                // Dense jungle trees
+                if (treeNoise > 0.2 && pseudoRandom > 0.75) {
+                    this.generateJungleTree(x, surfaceHeight, z);
+                } else if (this.getBlock(x, surfaceHeight, z) === BlockType.AIR) {
+                    // Dense ground cover
+                    if (pseudoRandom > 0.3) {
+                        const index = this.getBlockIndex(x, surfaceHeight, z);
+                        this.data[index] = BlockType.TALL_GRASS;
+                    }
+                }
+            } else if (biome === 'Savanna' && !isVolcano) {
+                const pseudoRandom = Math.abs(Math.sin(worldX * 12.9898 + worldZ * 78.233) * 43758.5453) % 1;
+                const treeNoise = this.world.noise2D(worldX * 0.1, worldZ * 0.1);
+                
+                // Sparse tall grass
+                if (this.getBlock(x, surfaceHeight, z) === BlockType.AIR && pseudoRandom > 0.6) {
+                    const index = this.getBlockIndex(x, surfaceHeight, z);
+                    this.data[index] = BlockType.TALL_GRASS;
+                }
+                
+                // Acacia-style trees (using oak for now, very spread out)
+                if (treeNoise > 0.5 && pseudoRandom > 0.96) {
+                    this.generateAcaciaTree(x, surfaceHeight, z);
+                }
+            } else if (biome === 'Swamp' && !isVolcano) {
+                const pseudoRandom = Math.abs(Math.sin(worldX * 12.9898 + worldZ * 78.233) * 43758.5453) % 1;
+                const treeNoise = this.world.noise2D(worldX * 0.1, worldZ * 0.1);
+                
+                // Swamp oak trees with vines
+                if (treeNoise > 0.3 && pseudoRandom > 0.88) {
+                    this.generateSwampTree(x, surfaceHeight, z);
+                }
+                
+                // Lily pads on water (simplified)
+                if (this.getBlock(x, surfaceHeight, z) === BlockType.AIR) {
+                    if (pseudoRandom > 0.65) {
+                        const index = this.getBlockIndex(x, surfaceHeight, z);
+                        this.data[index] = BlockType.TALL_GRASS;
+                    }
+                }
             }
         }
     }
@@ -583,6 +745,288 @@ export class Chunk {
           
           this.addLeaves(x, y + i, z, radius, BlockType.DARK_OAK_LEAVES);
       }
+  }
+
+  // Structure generation (dungeons, wells, ruins)
+  generateStructures() {
+    // Use chunk coordinates as seed for deterministic structure placement
+    const seed = (this.x * 73856093) ^ (this.z * 19349663);
+    const rng = (n) => {
+      let s = ((seed + n) * 2654435761) & 0xFFFFFFFF;
+      s = ((s >>> 16) ^ s) * 2246822507;
+      s = ((s >>> 13) ^ s) * 3266489917;
+      return ((s >>> 16) ^ s) >>> 0;
+    };
+
+    // Dungeon generation - rare (1 in 50 chunks)
+    if (rng(1) % 50 === 0) {
+      const dx = 4 + (rng(2) % 8);
+      const dz = 4 + (rng(3) % 8);
+      const dy = 15 + (rng(4) % 30); // Underground
+      this.generateDungeon(dx, dy, dz);
+    }
+
+    // Desert well - only in desert biomes
+    const centerWorldX = this.x * this.size + 8;
+    const centerWorldZ = this.z * this.size + 8;
+    const biome = this.world.getBiome(centerWorldX, centerWorldZ);
+
+    if (biome === 'Desert' && rng(5) % 80 === 0) {
+      const wx = 4 + (rng(6) % 8);
+      const wz = 4 + (rng(7) % 8);
+      const worldX = this.x * this.size + wx;
+      const worldZ = this.z * this.size + wz;
+      const wy = this.world.getHeight(worldX, worldZ);
+      this.generateDesertWell(wx, wy, wz);
+    }
+
+    // Plains village hut - only in Plains
+    if (biome === 'Plains' && rng(8) % 60 === 0) {
+      const vx = 3 + (rng(9) % 10);
+      const vz = 3 + (rng(10) % 10);
+      const worldX = this.x * this.size + vx;
+      const worldZ = this.z * this.size + vz;
+      const vy = this.world.getHeight(worldX, worldZ);
+      this.generateVillageHut(vx, vy, vz);
+    }
+  }
+
+  generateDungeon(x, y, z) {
+    const sizeX = 5 + Math.floor((((this.x * 37 + this.z * 53 + y) * 2654435761) >>> 16) % 4);
+    const sizeZ = 5 + Math.floor((((this.x * 41 + this.z * 59 + y) * 2654435761) >>> 16) % 4);
+    const sizeY = 4;
+
+    // Carve room
+    for (let dx = 0; dx < sizeX; dx++) {
+      for (let dz = 0; dz < sizeZ; dz++) {
+        for (let dy = 0; dy < sizeY; dy++) {
+          const bx = x + dx;
+          const by = y + dy;
+          const bz = z + dz;
+          if (bx >= 0 && bx < this.size && bz >= 0 && bz < this.size && by > 0 && by < this.height) {
+            if (dy === 0 || dy === sizeY - 1) {
+              // Floor/ceiling: cobblestone + mossy cobblestone
+              const idx = bx + this.size * (by + this.height * bz);
+              this.data[idx] = Math.random() < 0.4 ? BlockType.MOSSY_COBBLESTONE : BlockType.COBBLESTONE;
+            } else if (dx === 0 || dx === sizeX - 1 || dz === 0 || dz === sizeZ - 1) {
+              // Walls: cobblestone with gaps
+              const idx = bx + this.size * (by + this.height * bz);
+              if (Math.random() < 0.85) {
+                this.data[idx] = BlockType.COBBLESTONE;
+              } else {
+                this.data[idx] = BlockType.AIR;
+              }
+            } else {
+              // Interior: air
+              const idx = bx + this.size * (by + this.height * bz);
+              this.data[idx] = BlockType.AIR;
+            }
+          }
+        }
+      }
+    }
+
+    // Place a chest in corner
+    const chestX = x + 1;
+    const chestZ = z + 1;
+    if (chestX < this.size && chestZ < this.size && y + 1 < this.height) {
+      const idx = chestX + this.size * ((y + 1) + this.height * chestZ);
+      this.data[idx] = BlockType.CHEST;
+    }
+  }
+
+  generateDesertWell(x, y, z) {
+    // 5x5 sandstone base with water
+    for (let dx = -2; dx <= 2; dx++) {
+      for (let dz = -2; dz <= 2; dz++) {
+        const bx = x + dx;
+        const bz = z + dz;
+        if (bx < 0 || bx >= this.size || bz < 0 || bz >= this.size) continue;
+
+        // Base slab
+        if (y >= 0 && y < this.height) {
+          const idx = bx + this.size * (y + this.height * bz);
+          this.data[idx] = BlockType.SANDSTONE;
+        }
+
+        // Walls on edges
+        if (Math.abs(dx) === 2 || Math.abs(dz) === 2) {
+          for (let dy = 1; dy <= 3; dy++) {
+            if (y + dy < this.height) {
+              const idx = bx + this.size * ((y + dy) + this.height * bz);
+              this.data[idx] = BlockType.SANDSTONE;
+            }
+          }
+        } else if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1) {
+          // Water inside
+          if (y + 1 < this.height) {
+            const idx = bx + this.size * ((y + 1) + this.height * bz);
+            this.data[idx] = BlockType.WATER;
+          }
+        }
+      }
+    }
+
+    // Top slab
+    for (let dx = -2; dx <= 2; dx++) {
+      for (let dz = -2; dz <= 2; dz++) {
+        const bx = x + dx;
+        const bz = z + dz;
+        if (bx < 0 || bx >= this.size || bz < 0 || bz >= this.size) continue;
+        if (y + 4 < this.height) {
+          const idx = bx + this.size * ((y + 4) + this.height * bz);
+          this.data[idx] = BlockType.SANDSTONE;
+        }
+      }
+    }
+  }
+
+  generateVillageHut(x, y, z) {
+    const w = 5, d = 5, h = 4;
+
+    for (let dx = 0; dx < w; dx++) {
+      for (let dz = 0; dz < d; dz++) {
+        for (let dy = 0; dy < h; dy++) {
+          const bx = x + dx;
+          const bz = z + dz;
+          const by = y + dy + 1;
+          if (bx < 0 || bx >= this.size || bz < 0 || bz >= this.size || by >= this.height) continue;
+
+          const idx = bx + this.size * (by + this.height * bz);
+
+          if (dy === 0) {
+            // Floor
+            this.data[idx] = BlockType.OAK_PLANKS;
+          } else if (dy === h - 1) {
+            // Roof
+            this.data[idx] = BlockType.OAK_PLANKS;
+          } else if (dx === 0 || dx === w - 1 || dz === 0 || dz === d - 1) {
+            // Walls
+            if (dy === 2 && ((dx === Math.floor(w / 2) && (dz === 0 || dz === d - 1)) ||
+                            (dz === Math.floor(d / 2) && (dx === 0 || dx === w - 1)))) {
+              // Windows
+              this.data[idx] = BlockType.GLASS;
+            } else if (dy === 1 && dx === Math.floor(w / 2) && dz === 0) {
+              // Door opening
+              this.data[idx] = BlockType.AIR;
+            } else {
+              this.data[idx] = BlockType.OAK_LOG;
+            }
+          } else {
+            // Interior
+            this.data[idx] = BlockType.AIR;
+          }
+        }
+      }
+    }
+
+    // Crafting table inside
+    const ctX = x + 1;
+    const ctZ = z + 1;
+    if (ctX < this.size && ctZ < this.size && y + 2 < this.height) {
+      const idx = ctX + this.size * ((y + 2) + this.height * ctZ);
+      this.data[idx] = BlockType.CRAFTING_TABLE;
+    }
+  }
+
+  generateOakTree(x, y, z) {
+      const height = 5 + Math.floor(Math.random() * 2);
+      
+      // Trunk
+      for (let i = 0; i < height; i++) {
+          if (y + i < this.height) {
+              const index = this.getBlockIndex(x, y + i, z);
+              this.data[index] = BlockType.OAK_LOG;
+          }
+      }
+      
+      // Canopy
+      this.addLeaves(x, y + height - 2, z, 2, BlockType.OAK_LEAVES);
+      this.addLeaves(x, y + height - 1, z, 2, BlockType.OAK_LEAVES);
+      this.addLeaves(x, y + height, z, 1, BlockType.OAK_LEAVES);
+      this.setBlockLocal(x, y + height + 1, z, BlockType.OAK_LEAVES);
+  }
+
+  generateBirchTree(x, y, z) {
+      const height = 5 + Math.floor(Math.random() * 3);
+      
+      for (let i = 0; i < height; i++) {
+          if (y + i < this.height) {
+              const index = this.getBlockIndex(x, y + i, z);
+              this.data[index] = BlockType.BIRCH_LOG;
+          }
+      }
+      
+      this.addLeaves(x, y + height - 2, z, 2, BlockType.BIRCH_LEAVES);
+      this.addLeaves(x, y + height - 1, z, 2, BlockType.BIRCH_LEAVES);
+      this.addLeaves(x, y + height, z, 1, BlockType.BIRCH_LEAVES);
+      this.setBlockLocal(x, y + height + 1, z, BlockType.BIRCH_LEAVES);
+  }
+
+  generateJungleTree(x, y, z) {
+      const height = 8 + Math.floor(Math.random() * 8);
+      
+      // Thick trunk for tall trees
+      for (let i = 0; i < height; i++) {
+          if (y + i < this.height) {
+              const index = this.getBlockIndex(x, y + i, z);
+              this.data[index] = BlockType.JUNGLE_LOG;
+          }
+      }
+      
+      // Large canopy
+      this.addLeaves(x, y + height - 3, z, 3, BlockType.JUNGLE_LEAVES);
+      this.addLeaves(x, y + height - 2, z, 3, BlockType.JUNGLE_LEAVES);
+      this.addLeaves(x, y + height - 1, z, 2, BlockType.JUNGLE_LEAVES);
+      this.addLeaves(x, y + height, z, 2, BlockType.JUNGLE_LEAVES);
+      this.addLeaves(x, y + height + 1, z, 1, BlockType.JUNGLE_LEAVES);
+  }
+
+  generateAcaciaTree(x, y, z) {
+      const trunkHeight = 4 + Math.floor(Math.random() * 3);
+      
+      // Trunk
+      for (let i = 0; i < trunkHeight; i++) {
+          if (y + i < this.height) {
+              const index = this.getBlockIndex(x, y + i, z);
+              this.data[index] = BlockType.ACACIA_LOG;
+          }
+      }
+      
+      // Bent trunk - offset canopy
+      const offsetX = Math.random() < 0.5 ? -2 : 2;
+      const offsetZ = Math.random() < 0.5 ? -1 : 1;
+      
+      // Branch
+      for (let i = 0; i < 2; i++) {
+          this.setBlockLocal(x + Math.round(offsetX * (i + 1) / 2), y + trunkHeight + i, z + Math.round(offsetZ * (i + 1) / 2), BlockType.ACACIA_LOG);
+      }
+      
+      // Flat canopy
+      const canopyY = y + trunkHeight + 2;
+      const canopyX = x + offsetX;
+      const canopyZ = z + offsetZ;
+      
+      this.addLeaves(canopyX, canopyY, canopyZ, 3, BlockType.ACACIA_LEAVES);
+      this.addLeaves(canopyX, canopyY + 1, canopyZ, 2, BlockType.ACACIA_LEAVES);
+  }
+
+  generateSwampTree(x, y, z) {
+      const height = 5 + Math.floor(Math.random() * 3);
+      
+      // Trunk
+      for (let i = 0; i < height; i++) {
+          if (y + i < this.height) {
+              const index = this.getBlockIndex(x, y + i, z);
+              this.data[index] = BlockType.OAK_LOG;
+          }
+      }
+      
+      // Canopy (wider, droopier)
+      this.addLeaves(x, y + height - 2, z, 3, BlockType.OAK_LEAVES);
+      this.addLeaves(x, y + height - 1, z, 3, BlockType.OAK_LEAVES);
+      this.addLeaves(x, y + height, z, 2, BlockType.OAK_LEAVES);
+      this.setBlockLocal(x, y + height + 1, z, BlockType.OAK_LEAVES);
   }
 
   addMushroom(centerX, centerY, centerZ) {
@@ -720,25 +1164,18 @@ export class Chunk {
   }
 
   updateMesh() {
-    // Dispose existing meshes
+    // Dispose existing meshes (geometry only, materials are shared)
     Object.values(this.meshes).forEach(mesh => {
       this.game.scene.remove(mesh);
       mesh.geometry.dispose();
-      mesh.material.dispose();
+      // Don't dispose shared material
     });
     this.meshes = {};
-
-    // Dispose existing lights
-    this.lights.forEach(light => {
-        this.game.scene.remove(light);
-        if (light.dispose) light.dispose();
-    });
-    this.lights = [];
 
     if (this.waterMesh) {
       this.game.scene.remove(this.waterMesh);
       this.waterMesh.geometry.dispose();
-      this.waterMesh.material.dispose();
+      // Don't dispose shared material
       this.waterMesh = null;
     }
     this.generateMesh();
@@ -757,6 +1194,7 @@ export class Chunk {
 
     const color = new THREE.Color();
     const textureManager = this.game.textureManager;
+    const hasAtlas = textureManager && textureManager.atlasTexture;
 
     const size = this.size;
     const height = this.height;
@@ -770,6 +1208,18 @@ export class Chunk {
     const strideY = size;
     const strideZ = size * height;
 
+    // Cache biome data per column to avoid redundant noise calls
+    const biomeDataCache = new Array(size * size);
+    if (hasAtlas) {
+        for (let z = 0; z < size; z++) {
+            for (let x = 0; x < size; x++) {
+                const worldX = x + this.x * size;
+                const worldZ = z + this.z * size;
+                biomeDataCache[x + z * size] = this.world.getBiomeData(worldX, worldZ);
+            }
+        }
+    }
+
     // Loop order Z, Y, X for cache locality (Linear memory access)
     for (let z = 0; z < size; z++) {
       for (let y = startY; y < endY; y++) {
@@ -780,11 +1230,12 @@ export class Chunk {
           if (blockId === BlockType.AIR) continue;
 
           const def = BlockDefinitions[blockId];
-          color.setHex(def.color);
           
           // Use white color if texture is available to avoid tinting
-          if (def.textures && textureManager && textureManager.atlasTexture) {
-             color.setHex(0xFFFFFF);
+          if (def.textures && hasAtlas) {
+             color.setRGB(1, 1, 1);
+          } else {
+             color.setHex(def.color);
           }
           
           const isWater = blockId === BlockType.WATER;
@@ -794,22 +1245,13 @@ export class Chunk {
           const isGrass = def.model === BlockModels.GRASS;
           
           let tintColor = null;
-          if (def.textures && textureManager && textureManager.atlasTexture) {
-             if (blockId === BlockType.GRASS) {
-                 const worldX = x + this.x * size;
-                 const worldZ = z + this.z * size;
-                 const biomeData = this.world.getBiomeData(worldX, worldZ);
-                 tintColor = textureManager.getBiomeColor('grass', biomeData.temperature, biomeData.humidity);
+          if (hasAtlas && def.textures) {
+             if (blockId === BlockType.GRASS || blockId === BlockType.TALL_GRASS) {
+                 const bd = biomeDataCache[x + z * size];
+                 tintColor = textureManager.getBiomeColor('grass', bd.temperature, bd.humidity);
              } else if (blockId === BlockType.LEAVES || blockId === BlockType.PINE_LEAVES) {
-                 const worldX = x + this.x * size;
-                 const worldZ = z + this.z * size;
-                 const biomeData = this.world.getBiomeData(worldX, worldZ);
-                 tintColor = textureManager.getBiomeColor('foliage', biomeData.temperature, biomeData.humidity);
-             } else if (blockId === BlockType.TALL_GRASS) {
-                 const worldX = x + this.x * size;
-                 const worldZ = z + this.z * size;
-                 const biomeData = this.world.getBiomeData(worldX, worldZ);
-                 tintColor = textureManager.getBiomeColor('grass', biomeData.temperature, biomeData.humidity);
+                 const bd = biomeDataCache[x + z * size];
+                 tintColor = textureManager.getBiomeColor('foliage', bd.temperature, bd.humidity);
              }
           }
           
@@ -866,26 +1308,14 @@ export class Chunk {
           } else if (isGrass) {
               this.addGrass(x, y, z, positions, normals, colors, uvs, color, blockId, tintColor);
           } else {
-              // Torch Geometry (Simplified as a small box)
-              // Always draw torches for now, or check if obscured (unlikely)
+              // Torch Geometry only - NO PointLight (massive performance win)
               this.addTorch(x, y, z, positions, normals, colors, uvs, color);
-
-              // Add PointLight for Torch
-              // Couleur orange/jaune (0xFFAA00), intensité 10, distance 30 (pour couvrir ~8 blocs)
-              const light = new THREE.PointLight(0xFFAA00, 10, 30);
-              light.position.set(
-                  this.x * size + x + 0.5,
-                  y + 0.6,
-                  this.z * size + z + 0.5
-              );
-              this.game.scene.add(light);
-              this.lights.push(light);
           }
         }
       }
     }
 
-    // Create Solid Mesh
+    // Create Solid Mesh with shared material
     if (positions.length > 0) {
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -893,27 +1323,22 @@ export class Chunk {
         geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
         geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
         
-        // Compute bounding sphere for culling
+        // Compute bounding sphere for frustum culling
         geometry.computeBoundingSphere();
 
-        const material = new THREE.MeshLambertMaterial({ 
-            vertexColors: true,
-            side: THREE.FrontSide, // Backface culling enabled by default
-            map: textureManager ? textureManager.atlasTexture : null,
-            transparent: true,
-            alphaTest: 0.1
-        });
+        // Use shared material from world (avoids creating duplicate materials per chunk)
+        const material = this.world.getTerrainMaterial();
         
         const mesh = new THREE.Mesh(geometry, material);
         mesh.position.set(this.x * size, 0, this.z * size);
-        mesh.castShadow = true;
+        mesh.castShadow = false; // Disable per-chunk shadow casting (major perf win)
         mesh.receiveShadow = true;
         
         this.meshes['terrain'] = mesh;
         this.game.scene.add(mesh);
     }
 
-    // Create Water Mesh
+    // Create Water Mesh with shared material
     if (waterPositions.length > 0) {
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(waterPositions, 3));
@@ -923,17 +1348,12 @@ export class Chunk {
         
         geometry.computeBoundingSphere();
 
-        const material = new THREE.MeshLambertMaterial({ 
-            vertexColors: true,
-            transparent: true,
-            opacity: 0.6,
-            side: THREE.FrontSide,
-            map: textureManager ? textureManager.atlasTexture : null
-        });
+        // Use shared water material
+        const material = this.world.getWaterMaterial();
         
         this.waterMesh = new THREE.Mesh(geometry, material);
         this.waterMesh.position.set(this.x * size, 0, this.z * size);
-        this.waterMesh.receiveShadow = true;
+        this.waterMesh.receiveShadow = false;
         
         this.game.scene.add(this.waterMesh);
     }

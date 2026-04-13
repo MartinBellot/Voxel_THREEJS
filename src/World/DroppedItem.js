@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { BlockDefinitions } from './Block.js';
+import { ItemDefinitions } from '../Item.js';
 
 export class DroppedItem {
   constructor(game, x, y, z, blockType) {
@@ -33,26 +34,48 @@ export class DroppedItem {
 
   createMesh() {
     const def = BlockDefinitions[this.blockType];
-    const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+    const itemDef = ItemDefinitions[this.blockType];
+    
+    // Shared geometry for all dropped items
+    if (!DroppedItem._geometry) {
+      DroppedItem._geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+    }
+    const geometry = DroppedItem._geometry.clone(); // Clone for UV modification
     
     let material;
     
-    if (this.game.textureManager && this.game.textureManager.atlasTexture) {
-        material = new THREE.MeshLambertMaterial({ 
+    if (def && this.game.textureManager && this.game.textureManager.atlasTexture) {
+        // Shared material for textured dropped items
+        if (!DroppedItem._atlasMaterial) {
+          DroppedItem._atlasMaterial = new THREE.MeshLambertMaterial({ 
             map: this.game.textureManager.atlasTexture,
-            transparent: def.transparent || false,
-            opacity: def.opacity || 1.0,
             alphaTest: 0.1
-        });
-        
+          });
+        }
+        material = DroppedItem._atlasMaterial;
         this.updateUVs(geometry, def);
+    } else if (itemDef) {
+        const colorMap = {
+          'Bone': 0xD4CFC0, 'Gunpowder': 0x555555, 'Arrow': 0x8B6914,
+          'Raw Beef': 0xCC4444, 'Rotten Flesh': 0x7A5533,
+        };
+        const color = colorMap[itemDef.name] || 0xAAAAAA;
+        // Cache by color
+        if (!DroppedItem._colorMaterials) DroppedItem._colorMaterials = {};
+        if (!DroppedItem._colorMaterials[color]) {
+          DroppedItem._colorMaterials[color] = new THREE.MeshLambertMaterial({ color });
+        }
+        material = DroppedItem._colorMaterials[color];
     } else {
-        material = new THREE.MeshLambertMaterial({ color: def.color || 0xffffff });
+        if (!DroppedItem._defaultMaterial) {
+          DroppedItem._defaultMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+        }
+        material = DroppedItem._defaultMaterial;
     }
 
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
     return mesh;
   }
 
@@ -168,7 +191,7 @@ export class DroppedItem {
       this.isCollected = true;
       this.game.scene.remove(this.mesh);
       this.mesh.geometry.dispose();
-      this.mesh.material.dispose();
+      // Don't dispose shared material
   }
 
   collect() {

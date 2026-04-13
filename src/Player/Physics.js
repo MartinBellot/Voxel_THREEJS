@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BlockType } from '../World/Block.js';
+import { BlockType, BlockDefinitions, isLiquid, isSolid } from '../World/Block.js';
 
 export class Physics {
   constructor(player) {
@@ -14,21 +14,64 @@ export class Physics {
     this.depth = 0.6;
     
     this.inWater = false;
+    this.inLava = false;
+
+    // Fall damage tracking
+    this.fallStartY = null;
+    this.wasFalling = false;
+
+    // Lava damage timer
+    this.lavaDamageTimer = 0;
   }
 
   update(delta) {
     this.checkWater();
     this.applyGravity(delta);
     this.checkCollisions(delta);
+    this.checkEnvironmentDamage(delta);
   }
 
   checkWater() {
       const pos = this.player.camera.position;
-      // Check feet and head
       const blockFeet = this.world.getBlock(Math.floor(pos.x), Math.floor(pos.y - 1.5), Math.floor(pos.z));
       const blockHead = this.world.getBlock(Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z));
       
-      this.inWater = (blockFeet === BlockType.WATER || blockHead === BlockType.WATER);
+      this.inWater = (blockFeet === BlockType.WATER || blockHead === BlockType.WATER ||
+                      blockFeet === BlockType.MAGIC_WATER || blockHead === BlockType.MAGIC_WATER);
+      this.inLava = (blockFeet === BlockType.LAVA || blockHead === BlockType.LAVA);
+  }
+
+  checkEnvironmentDamage(delta) {
+    if (this.player.gamemode !== 'survival') return;
+
+    // Lava damage: 4 hearts/second
+    if (this.inLava) {
+      this.lavaDamageTimer += delta;
+      if (this.lavaDamageTimer >= 0.5) {
+        this.lavaDamageTimer = 0;
+        this.player.takeDamage(4);
+      }
+    } else {
+      this.lavaDamageTimer = 0;
+    }
+
+    // Cactus damage
+    const pos = this.player.camera.position;
+    const eyeHeight = 1.6;
+    const halfW = this.width / 2;
+    const checkPositions = [
+      [Math.floor(pos.x - halfW), Math.floor(pos.y - eyeHeight + 0.1), Math.floor(pos.z)],
+      [Math.floor(pos.x + halfW), Math.floor(pos.y - eyeHeight + 0.1), Math.floor(pos.z)],
+      [Math.floor(pos.x), Math.floor(pos.y - eyeHeight + 0.1), Math.floor(pos.z - halfW)],
+      [Math.floor(pos.x), Math.floor(pos.y - eyeHeight + 0.1), Math.floor(pos.z + halfW)],
+    ];
+    for (const [bx, by, bz] of checkPositions) {
+      const block = this.world.getBlock(bx, by, bz);
+      if (block === BlockType.CACTUS) {
+        this.player.takeDamage(1);
+        break;
+      }
+    }
   }
 
   applyGravity(delta) {
@@ -107,15 +150,31 @@ export class Physics {
     let nextY = position.y + velocity.y * delta;
     if (this.checkCollision(position.x, nextY, position.z)) {
       if (velocity.y < 0) {
+        // Fall damage calculation (Minecraft: damage = fallDistance - 3)
+        if (this.fallStartY !== null && this.player.gamemode === 'survival') {
+          const fallDistance = this.fallStartY - position.y;
+          if (fallDistance > 3) {
+            const damage = Math.floor(fallDistance - 3);
+            this.player.takeDamage(damage);
+          }
+        }
+        this.fallStartY = null;
+        this.wasFalling = false;
         this.player.canJump = true;
       }
       velocity.y = 0;
-      // On pourrait aligner la position sur le bloc ici pour éviter de trembler
     } else {
+      // Track falling
+      if (velocity.y < -0.5 && !this.inWater && !this.inLava) {
+        if (this.fallStartY === null) {
+          this.fallStartY = position.y;
+        }
+        this.wasFalling = true;
+      } else if (velocity.y >= 0 || this.inWater || this.inLava) {
+        this.fallStartY = null;
+        this.wasFalling = false;
+      }
       position.y = nextY;
-      // Si on tombe, on ne peut pas sauter
-      // Mais attention aux petites pentes ou escaliers (pas gérés ici encore)
-      // Pour l'instant simple
     }
   }
 
@@ -144,7 +203,7 @@ export class Physics {
       for (let by = startY; by <= endY; by++) {
         for (let bz = startZ; bz <= endZ; bz++) {
           const block = this.world.getBlock(bx, by, bz);
-          if (block !== BlockType.AIR && block !== BlockType.WATER && block !== BlockType.TALL_GRASS) {
+          if (block !== BlockType.AIR && !isLiquid(block) && isSolid(block)) {
             return true;
           }
         }

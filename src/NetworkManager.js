@@ -13,7 +13,7 @@ export class NetworkManager {
         this.username = username;
         console.log('Connecting to WebSocket...');
         // Force connection to VPS as requested
-        const wsUrl = 'ws://148.230.117.98:8011/ws/game/';
+        const wsUrl = 'ws://127.0.0.1:8011/ws/game/';
         
         console.log(`Attempting connection to: ${wsUrl}`);
         try {
@@ -54,7 +54,6 @@ export class NetworkManager {
 
         this.socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            console.log('WebSocket message received:', data);
             this.handleMessage(data);
         };
 

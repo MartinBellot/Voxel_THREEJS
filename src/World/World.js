@@ -2,16 +2,16 @@ import * as THREE from 'three';
 import { createNoise3D, createNoise2D } from 'simplex-noise';
 import { Chunk } from './Chunk.js';
 import { SeededRandom } from '../Utils/SeededRandom.js';
-import { BlockType } from './Block.js';
+import { BlockType, isLiquid } from './Block.js';
 
 export class World {
   constructor(game) {
     this.game = game;
     this.chunks = new Map();
     this.chunkSize = 16;
-    this.chunkHeight = 320; // Reduced from 640 to save memory
+    this.chunkHeight = 256; // Reduced from 320 to save memory (still allows mountains)
     this.renderDistance = 6; // High detail distance
-    this.farRenderDistance = 16; // Low detail distance (Immense)
+    this.farRenderDistance = 10; // Reduced from 16 for performance
     this.seaLevel = 40;
     
     // Default seed
@@ -30,8 +30,52 @@ export class World {
     this.chunksToLoad = [];
     this.isHighAltitude = false;
 
+    // Liquid flow queue
+    this.liquidQueue = [];
+    this.liquidTimer = 0;
+    this.liquidTickRate = 0.25; // Process liquids every 0.25s (water) / 1.25s lava
+
+    // Shared materials (created lazily, reused by all chunks)
+    this._terrainMaterial = null;
+    this._waterMaterial = null;
+
+    // Biome data cache to avoid redundant noise calls
+    this._biomeCache = new Map();
+    this._biomeCacheSize = 0;
+    this._maxBiomeCacheSize = 10000;
+
     // Génération initiale synchrone
     this.generateInitialChunks();
+  }
+
+  // Shared terrain material (one instance for all chunks)
+  getTerrainMaterial() {
+    if (!this._terrainMaterial) {
+      const textureManager = this.game.textureManager;
+      this._terrainMaterial = new THREE.MeshLambertMaterial({ 
+        vertexColors: true,
+        side: THREE.FrontSide,
+        map: textureManager ? textureManager.atlasTexture : null,
+        alphaTest: 0.1
+      });
+    }
+    return this._terrainMaterial;
+  }
+
+  // Shared water material (one instance for all chunks)
+  getWaterMaterial() {
+    if (!this._waterMaterial) {
+      const textureManager = this.game.textureManager;
+      this._waterMaterial = new THREE.MeshLambertMaterial({ 
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.6,
+        side: THREE.FrontSide,
+        map: textureManager ? textureManager.atlasTexture : null,
+        depthWrite: false
+      });
+    }
+    return this._waterMaterial;
   }
 
   setupNoise() {
@@ -119,19 +163,22 @@ export class World {
               Object.values(chunk.meshes).forEach(mesh => {
                   this.game.scene.remove(mesh);
                   mesh.geometry.dispose();
-                  mesh.material.dispose();
               });
           }
           if (chunk.waterMesh) {
               this.game.scene.remove(chunk.waterMesh);
               chunk.waterMesh.geometry.dispose();
-              chunk.waterMesh.material.dispose();
           }
       });
       this.chunks.clear();
-      this.chunksToLoad = []; // Clear pending chunks
-      this.lastChunkUpdatePos = { x: -999, z: -999 }; // Force update
-      this.update(0); // Trigger update immediately
+      this._biomeCache.clear();
+      this._biomeCacheSize = 0;
+      // Reset shared materials since atlas may change
+      this._terrainMaterial = null;
+      this._waterMaterial = null;
+      this.chunksToLoad = [];
+      this.lastChunkUpdatePos = { x: -999, z: -999 };
+      this.update(0);
   }
 
   setModifications(modifications) {
@@ -160,9 +207,17 @@ export class World {
     if (elevation > 0.6) return 'Mountain';
 
     // Land biomes based on humidity
-    if (humidity < -0.2) return 'Desert';
+    if (humidity < -0.4) return 'Desert';
+    if (humidity < -0.15) return 'Savanna';
     if (humidity > 0.6) return 'Mushrooms';
-    return 'Pine Forest';
+    if (humidity > 0.35) return 'Swamp';
+    if (humidity > 0.15) return 'Jungle';
+    
+    // Temperature variation for forest type
+    const temp = this.biomeNoise(x * 0.002 + 500, z * 0.002 + 500);
+    if (temp > 0.2) return 'Birch Forest';
+    if (temp < -0.2) return 'Pine Forest';
+    return 'Plains';
   }
 
   getBiomeData(x, z) {
@@ -179,9 +234,12 @@ export class World {
         temperature = 0.2;
     } else {
         // Land
-        if (humidity < -0.2) temperature = 2.0; // Desert
+        if (humidity < -0.4) temperature = 2.0; // Desert
+        else if (humidity < -0.15) temperature = 1.5; // Savanna
         else if (humidity > 0.6) temperature = 0.6; // Mushrooms
-        else temperature = 0.3; // Pine Forest
+        else if (humidity > 0.35) temperature = 0.7; // Swamp
+        else if (humidity > 0.15) temperature = 0.9; // Jungle
+        else temperature = 0.3; // Forest/Plains
     }
     
     return { temperature, humidity: (humidity + 1) / 2 };
@@ -272,11 +330,17 @@ export class World {
              }
         } else {
              // Land biomes terrain
-             if (humidity < -0.2) { // Desert
+             if (humidity < -0.4) { // Desert
                  height += localNoise * 2; // Flat
+             } else if (humidity < -0.15) { // Savanna
+                 height += localNoise * 3; // Mostly flat with slight hills
              } else if (humidity > 0.6) { // Mushrooms
                  height += localNoise * 8; // Rolling hills
-             } else { // Pine Forest
+             } else if (humidity > 0.35) { // Swamp
+                 height = this.seaLevel + 1 + localNoise * 2; // Very flat, near water
+             } else if (humidity > 0.15) { // Jungle
+                 height += localNoise * 6; // Moderate hills
+             } else { // Pine Forest / Birch Forest / Plains
                  height += localNoise * 5; // Normal
              }
         }
@@ -322,7 +386,6 @@ export class World {
     const isHigh = playerPos.y > 300;
     if (isHigh !== this.isHighAltitude) {
         this.isHighAltitude = isHigh;
-        console.log(`Altitude changed to ${isHigh ? 'High' : 'Low'}. Regenerating chunks...`);
         
         // Clear all chunks to force regeneration with/without islands
         this.chunks.forEach(chunk => {
@@ -330,36 +393,23 @@ export class World {
                 Object.values(chunk.meshes).forEach(mesh => {
                     this.game.scene.remove(mesh);
                     mesh.geometry.dispose();
-                    mesh.material.dispose();
                 });
             }
             if (chunk.waterMesh) {
                 this.game.scene.remove(chunk.waterMesh);
                 chunk.waterMesh.geometry.dispose();
-                chunk.waterMesh.material.dispose();
             }
         });
         this.chunks.clear();
-        this.lastChunkUpdatePos = { x: -999, z: -999 }; // Force update
+        this._biomeCache.clear();
+        this._biomeCacheSize = 0;
+        this.lastChunkUpdatePos = { x: -999, z: -999 };
     }
 
     const chunkX = Math.floor(playerPos.x / this.chunkSize);
     const chunkZ = Math.floor(playerPos.z / this.chunkSize);
-    
-    // Debug info UI
-    if (document.getElementById('chunk-count')) {
-        document.getElementById('chunk-count').innerText = `${this.chunks.size} (CX:${chunkX}, CZ:${chunkZ})`;
-    }
 
-    // Debug info Console (every 1s)
-    const now = performance.now();
-    if (now - this.lastDebugTime > 1000) {
-        console.log(`[World] Player: (${playerPos.x.toFixed(1)}, ${playerPos.z.toFixed(1)}) -> Chunk: [${chunkX}, ${chunkZ}]`);
-        console.log(`[World] Chunks loaded: ${this.chunks.size}`);
-        this.lastDebugTime = now;
-    }
-
-    // Update chunks loading queue only if player moved chunk or queue is empty (and we might need more)
+    // Update chunks loading queue only if player moved chunk or queue is empty
     const distMoved = Math.abs(chunkX - this.lastChunkUpdatePos.x) + Math.abs(chunkZ - this.lastChunkUpdatePos.z);
     
     if (distMoved > 0 || this.chunksToLoad.length === 0) {
@@ -368,11 +418,13 @@ export class World {
         this.chunksToLoad = [];
         for (let x = chunkX - this.farRenderDistance; x <= chunkX + this.farRenderDistance; x++) {
             for (let z = chunkZ - this.farRenderDistance; z <= chunkZ + this.farRenderDistance; z++) {
-                const dist = Math.sqrt((x - chunkX)**2 + (z - chunkZ)**2);
-                if (dist <= this.farRenderDistance) {
+                const dx = x - chunkX;
+                const dz = z - chunkZ;
+                const distSq = dx * dx + dz * dz;
+                if (distSq <= this.farRenderDistance * this.farRenderDistance) {
                     const key = `${x},${z}`;
                     if (!this.chunks.has(key)) {
-                        this.chunksToLoad.push({ x, z, dist });
+                        this.chunksToLoad.push({ x, z, dist: Math.sqrt(distSq) });
                     }
                 }
             }
@@ -413,23 +465,24 @@ export class World {
 
       // Unload if too far
       if (distSq > farRenderDistSq) {
-        // console.log(`Removing chunk ${chunk.x}, ${chunk.z} (dist: ${dist})`);
         if (chunk.meshes) { 
              Object.values(chunk.meshes).forEach(mesh => {
                  this.game.scene.remove(mesh);
                  mesh.geometry.dispose();
-                 mesh.material.dispose();
+                 // Don't dispose shared material
              });
         }
-        // Also waterMesh
         if (chunk.waterMesh) {
           this.game.scene.remove(chunk.waterMesh);
           chunk.waterMesh.geometry.dispose();
-          chunk.waterMesh.material.dispose();
+          // Don't dispose shared material
         }
         this.chunks.delete(key);
       }
     }
+
+    // Process liquid flow
+    this.updateLiquids(delta);
   }
 
   generateChunk(chunkX, chunkZ) {
@@ -499,5 +552,67 @@ export class World {
         const neighbor = this.chunks.get(`${chunkX},${chunkZ + 1}`);
         if (neighbor) neighbor.updateMesh();
     }
+    // Trigger liquid updates for nearby blocks
+    if (type === BlockType.AIR) {
+      this.scheduleLiquidUpdate(x, y, z);
+    }
+    if (type === BlockType.WATER || type === BlockType.LAVA) {
+      this.scheduleLiquidUpdate(x, y, z);
+    }
   }
+
+  scheduleLiquidUpdate(x, y, z) {
+    // Check neighbors for liquids that might flow
+    const offsets = [[0, 1, 0], [0, -1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]];
+    for (const [dx, dy, dz] of offsets) {
+      const nx = x + dx, ny = y + dy, nz = z + dz;
+      const block = this.getBlock(nx, ny, nz);
+      if (block === BlockType.WATER || block === BlockType.LAVA) {
+        const key = `${nx},${ny},${nz}`;
+        if (!this.liquidQueue.some(q => q.key === key)) {
+          this.liquidQueue.push({ x: nx, y: ny, z: nz, key, type: block });
+        }
+      }
+    }
+    // Also add self if it's a liquid
+    const selfBlock = this.getBlock(x, y, z);
+    if (selfBlock === BlockType.WATER || selfBlock === BlockType.LAVA) {
+      const key = `${x},${y},${z}`;
+      if (!this.liquidQueue.some(q => q.key === key)) {
+        this.liquidQueue.push({ x, y, z, key, type: selfBlock });
+      }
+    }
+  }
+
+  updateLiquids(delta) {
+    this.liquidTimer += delta;
+    if (this.liquidTimer < this.liquidTickRate) return;
+    this.liquidTimer = 0;
+
+    const maxUpdates = 50; // Process at most 50 per tick
+    const toProcess = this.liquidQueue.splice(0, maxUpdates);
+
+    for (const entry of toProcess) {
+      const { x, y, z, type } = entry;
+      const current = this.getBlock(x, y, z);
+      if (current !== type) continue; // Block changed since queued
+
+      // Flow down
+      const below = this.getBlock(x, y - 1, z);
+      if (below === BlockType.AIR) {
+        this.setBlock(x, y - 1, z, type);
+        continue;
+      }
+
+      // Flow sideways (only if can't flow down)
+      const flowRange = type === BlockType.WATER ? 7 : 3;
+      const dirs = [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]];
+      for (const [dx, _, dz] of dirs) {
+        const nx = x + dx, nz = z + dz;
+        const neighbor = this.getBlock(nx, y, nz);
+        if (neighbor === BlockType.AIR) {
+          this.setBlock(nx, y, nz, type);
+        }
+      }
+    }  }
 }

@@ -33,16 +33,18 @@ export class Pig {
     }
 
     createBody() {
-        const textureLoader = new THREE.TextureLoader();
-        const texture = textureLoader.load('assets/textures/entities/pig.png');
-        texture.magFilter = THREE.NearestFilter;
-        texture.minFilter = THREE.NearestFilter;
-        
-        const material = new THREE.MeshStandardMaterial({
-            map: texture,
-            roughness: 1,
-            metalness: 0
-        });
+        // Shared texture and material across all Pig instances
+        if (!Pig._material) {
+            const textureLoader = new THREE.TextureLoader();
+            const texture = textureLoader.load('assets/textures/entities/pig.png');
+            texture.magFilter = THREE.NearestFilter;
+            texture.minFilter = THREE.NearestFilter;
+            
+            Pig._material = new THREE.MeshLambertMaterial({
+                map: texture
+            });
+        }
+        const material = Pig._material;
 
         // Dimensions (Minecraft pixels / 16)
         // Head: 8x8x8 -> 0.5 x 0.5 x 0.5
@@ -382,5 +384,13 @@ export class Pig {
             // Reset legs
             this.legs.forEach(leg => leg.rotation.x = 0);
         }
+    }
+
+    dispose() {
+        this.game.scene.remove(this.mesh);
+        this.mesh.traverse(child => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) child.material.dispose();
+        });
     }
 }

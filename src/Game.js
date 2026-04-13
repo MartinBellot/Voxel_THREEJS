@@ -9,9 +9,18 @@ import { NetworkManager } from './NetworkManager.js';
 import { PauseMenu } from './PauseMenu.js';
 import { DroppedItem } from './World/DroppedItem.js';
 import { BlockType } from './World/Block.js';
+import { ItemDefinitions } from './Item.js';
+import { CraftingUI } from './CraftingUI.js';
 import { Pig } from './Entities/Pig.js';
 import { Chicken } from './Entities/Chicken.js';
+import { Zombie } from './Entities/Zombie.js';
+import { Skeleton } from './Entities/Skeleton.js';
+import { Creeper } from './Entities/Creeper.js';
+import { TNTEntity } from './Entities/TNT.js';
 import { Minimap } from './Minimap/Minimap.js';
+import { ParticleSystem } from './ParticleSystem.js';
+import { WeatherSystem } from './WeatherSystem.js';
+import { SoundSystem } from './SoundSystem.js';
 
 export class Game {
   constructor() {
@@ -20,9 +29,9 @@ export class Game {
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x87CEEB);
-    this.scene.fog = new THREE.Fog(0x87CEEB, 150, 250); // Brouillard ajusté pour cacher la fin du monde
+    this.scene.fog = new THREE.Fog(0x87CEEB, 100, 180); // Tighter fog to hide chunk edges
 
-    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
     this.camera.position.set(0, 10, 0);
 
     // Renderer will be created in init()
@@ -33,9 +42,21 @@ export class Game {
     this.frames = 0;
     this.lastTime = performance.now();
 
+    // Pre-allocated colors for day/night cycle (avoid GC pressure)
+    this._dayColor = new THREE.Color(0x87CEEB);
+    this._sunsetColor = new THREE.Color(0xFD5E53);
+    this._nightColor = new THREE.Color(0x050510);
+    this._skyColor = new THREE.Color();
+    this._dayCloudColor = new THREE.Color(0xffffff);
+    this._sunsetCloudColor = new THREE.Color(0xFFD700);
+    this._nightCloudColor = new THREE.Color(0x1a1a2e);
+    this._cloudColor = new THREE.Color();
+    this._ambientLerpTarget = new THREE.Color(0xffffff);
+    this._debugUpdateTimer = 0;
+
     // Day/Night Cycle
     this.time = 6000; // 0-24000, 6000 is noon
-    this.timeSpeed = 10; // Speed of time
+    this.timeSpeed = 2; // 20min full cycle (same as Minecraft)
 
     this.textureManager = new TextureManager(this);
     this.textureManager.loadTextures().then(() => {
@@ -50,6 +71,10 @@ export class Game {
     this.console = new Console(this);
     this.pauseMenu = new PauseMenu(this);
     this.minimap = new Minimap(this);
+    this.craftingUI = null; // Created after player is ready
+    this.particleSystem = new ParticleSystem(this);
+    this.weatherSystem = new WeatherSystem(this);
+    this.soundSystem = new SoundSystem();
     
     this.droppedItems = [];
     this.entities = [];
@@ -61,6 +86,7 @@ export class Game {
     this.isPlaying = false;
 
     this.setupLights();
+    this.setupTorchLights();
     this.setupCelestialBodies();
     this.setupEvents();
   }
@@ -74,12 +100,13 @@ export class Game {
       await this.renderer.init();
     } else {
       // WebGL fallback
-      this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
+      this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: false, powerPreference: 'high-performance' });
     }
 
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(1);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1));
     this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.BasicShadowMap; // Fastest shadow type
     this.renderer.autoClear = false;
 
     // Start animation loop
@@ -93,30 +120,75 @@ export class Game {
     this.sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
     this.sunLight.position.set(10, 20, 10);
     this.sunLight.castShadow = true;
-    this.sunLight.shadow.mapSize.width = 1024; // Optimized shadow map size
-    this.sunLight.shadow.mapSize.height = 1024;
-    this.sunLight.shadow.camera.near = 0.1;
-    this.sunLight.shadow.camera.far = 150; // Optimized shadow distance
-    this.sunLight.shadow.camera.left = -80; // Tighter shadow frustum
-    this.sunLight.shadow.camera.right = 80;
-    this.sunLight.shadow.camera.top = 80;
-    this.sunLight.shadow.camera.bottom = -80;
-    this.sunLight.shadow.bias = -0.0005;
+    this.sunLight.shadow.mapSize.width = 512; // Reduced for performance
+    this.sunLight.shadow.mapSize.height = 512;
+    this.sunLight.shadow.camera.near = 1;
+    this.sunLight.shadow.camera.far = 100; // Tighter shadow distance
+    this.sunLight.shadow.camera.left = -50; // Tighter shadow frustum
+    this.sunLight.shadow.camera.right = 50;
+    this.sunLight.shadow.camera.top = 50;
+    this.sunLight.shadow.camera.bottom = -50;
+    this.sunLight.shadow.bias = -0.001;
     this.scene.add(this.sunLight);
 
     this.moonLight = new THREE.DirectionalLight(0x6666ff, 0.4);
     this.moonLight.position.set(-10, -20, -10);
-    this.moonLight.castShadow = true;
-    this.moonLight.shadow.mapSize.width = 512; // Lower resolution for moon shadows
-    this.moonLight.shadow.mapSize.height = 512;
-    this.moonLight.shadow.camera.near = 0.1;
-    this.moonLight.shadow.camera.far = 150;
-    this.moonLight.shadow.camera.left = -80;
-    this.moonLight.shadow.camera.right = 80;
-    this.moonLight.shadow.camera.top = 80;
-    this.moonLight.shadow.camera.bottom = -80;
-    this.moonLight.shadow.bias = -0.0005;
+    this.moonLight.castShadow = false; // Disable moon shadows for performance
     this.scene.add(this.moonLight);
+  }
+
+  setupTorchLights() {
+    // Pool of PointLights for nearby torches (max 6 for performance)
+    this.torchLightPool = [];
+    this.torchLightCount = 6;
+    this._lastTorchUpdate = 0;
+    for (let i = 0; i < this.torchLightCount; i++) {
+      const light = new THREE.PointLight(0xFF9933, 1.2, 12, 2);
+      light.visible = false;
+      this.scene.add(light);
+      this.torchLightPool.push(light);
+    }
+  }
+
+  updateTorchLights() {
+    if (!this.player || !this.world) return;
+    const now = performance.now();
+    if (now - this._lastTorchUpdate < 500) return; // Update every 500ms
+    this._lastTorchUpdate = now;
+
+    const px = Math.floor(this.player.camera.position.x);
+    const py = Math.floor(this.player.camera.position.y);
+    const pz = Math.floor(this.player.camera.position.z);
+    const searchRadius = 10;
+
+    // Find nearby torch blocks
+    const torches = [];
+    for (let dx = -searchRadius; dx <= searchRadius; dx++) {
+      for (let dy = -searchRadius; dy <= searchRadius; dy++) {
+        for (let dz = -searchRadius; dz <= searchRadius; dz++) {
+          const bx = px + dx, by = py + dy, bz = pz + dz;
+          const block = this.world.getBlock(bx, by, bz);
+          if (block === BlockType.TORCH || block === BlockType.GLOWSTONE ||
+              block === BlockType.SEA_LANTERN || block === BlockType.JACK_O_LANTERN) {
+            const distSq = dx * dx + dy * dy + dz * dz;
+            torches.push({ x: bx + 0.5, y: by + 0.7, z: bz + 0.5, distSq });
+          }
+        }
+      }
+    }
+
+    // Sort by distance, take closest N
+    torches.sort((a, b) => a.distSq - b.distSq);
+
+    for (let i = 0; i < this.torchLightCount; i++) {
+      const light = this.torchLightPool[i];
+      if (i < torches.length) {
+        light.position.set(torches[i].x, torches[i].y, torches[i].z);
+        light.visible = true;
+      } else {
+        light.visible = false;
+      }
+    }
   }
 
   setupCelestialBodies() {
@@ -364,59 +436,42 @@ export class Game {
         t = (sunHeight + transitionHeight) / (transitionHeight * 2);
     }
 
-    // Dynamic Sky Color
-    const dayColor = new THREE.Color(0x87CEEB);
-    const sunsetColor = new THREE.Color(0xFD5E53);
-    const nightColor = new THREE.Color(0x050510);
-    
-    let skyColor = new THREE.Color();
-    
+    // Dynamic Sky Color (using pre-allocated colors)
     if (t < 0.2) {
-        // Night
-        skyColor.copy(nightColor);
+        this._skyColor.copy(this._nightColor);
     } else if (t < 0.4) {
-        // Sunrise / Sunset
         const localT = (t - 0.2) / 0.2;
-        skyColor.copy(nightColor).lerp(sunsetColor, localT);
+        this._skyColor.copy(this._nightColor).lerp(this._sunsetColor, localT);
     } else if (t < 0.6) {
-        // Sunset to Day
         const localT = (t - 0.4) / 0.2;
-        skyColor.copy(sunsetColor).lerp(dayColor, localT);
+        this._skyColor.copy(this._sunsetColor).lerp(this._dayColor, localT);
     } else {
-        // Day
-        skyColor.copy(dayColor);
+        this._skyColor.copy(this._dayColor);
     }
     
-    this.scene.background.copy(skyColor);
-    this.scene.fog.color.copy(skyColor);
+    this.scene.background.copy(this._skyColor);
+    this.scene.fog.color.copy(this._skyColor);
     
     // Dynamic Light Intensity & Color
     this.sunLight.intensity = Math.max(0, t * 1.2);
     
-    // Warmer daylight (Hue 0.1 is Golden Yellow, Saturation 0.7 for warmth)
     if (t < 0.2) {
-        this.sunLight.color.setHSL(0.05, 0.8, 0.6); // Dawn/Dusk - Orange/Red
+        this.sunLight.color.setHSL(0.05, 0.8, 0.6);
     } else {
-        // Warm golden daylight
         this.sunLight.color.setHSL(0.1, 0.7, 0.8); 
     }
     
     this.moonLight.intensity = Math.max(0, (1 - t) * 0.4);
     
     this.ambientLight.intensity = 0.1 + (0.5 * t);
-    this.ambientLight.color.copy(skyColor).lerp(new THREE.Color(0xffffff), 0.5);
+    this.ambientLight.color.copy(this._skyColor).lerp(this._ambientLerpTarget, 0.5);
 
     if (this.clouds && this.clouds.mesh) {
-        const dayCloudColor = new THREE.Color(0xffffff);
-        const sunsetCloudColor = new THREE.Color(0xFFD700);
-        const nightCloudColor = new THREE.Color(0x1a1a2e);
-        
-        let cloudColor = new THREE.Color();
-        if (t < 0.3) cloudColor.copy(nightCloudColor);
-        else if (t < 0.5) cloudColor.copy(nightCloudColor).lerp(sunsetCloudColor, (t - 0.3) / 0.2);
-        else cloudColor.copy(sunsetCloudColor).lerp(dayCloudColor, (t - 0.5) / 0.5);
+        if (t < 0.3) this._cloudColor.copy(this._nightCloudColor);
+        else if (t < 0.5) this._cloudColor.copy(this._nightCloudColor).lerp(this._sunsetCloudColor, (t - 0.3) / 0.2);
+        else this._cloudColor.copy(this._sunsetCloudColor).lerp(this._dayCloudColor, (t - 0.5) / 0.5);
 
-        this.clouds.mesh.material.color.copy(cloudColor);
+        this.clouds.mesh.material.color.copy(this._cloudColor);
     }
   }
 
@@ -427,7 +482,7 @@ export class Game {
     }
 
     this.world.renderDistance = renderDistance;
-    this.world.farRenderDistance = renderDistance + 4; // Load a bit more than high detail
+    this.world.farRenderDistance = renderDistance + 2; // Tight buffer for performance
     
     // Force update of chunks to respect new render distance immediately
     this.world.lastChunkUpdatePos = { x: -999, z: -999 }; // Force update
@@ -436,6 +491,9 @@ export class Game {
     
     // Lock pointer to start playing
     this.player.controls.lock();
+    
+    // Initialize crafting UI
+    this.craftingUI = new CraftingUI(this);
     
     // Spawn a test pig
     this.spawnEntity('pig', new THREE.Vector3(0, 50, 0));
@@ -450,7 +508,144 @@ export class Game {
       } else if (type === 'chicken') {
           const chicken = new Chicken(this, position);
           this.entities.push(chicken);
+      } else if (type === 'zombie') {
+          const zombie = new Zombie(this, position);
+          this.entities.push(zombie);
+      } else if (type === 'skeleton') {
+          const skeleton = new Skeleton(this, position);
+          this.entities.push(skeleton);
+      } else if (type === 'creeper') {
+          const creeper = new Creeper(this, position);
+          this.entities.push(creeper);
       }
+  }
+
+  igniteTNT(x, y, z) {
+    const tnt = new TNTEntity(this, x, y, z);
+    this.entities.push(tnt);
+  }
+
+  // Mob spawning system
+  mobSpawnTimer = 0;
+  maxHostileMobs = 20;
+  maxPassiveMobs = 10;
+
+  updateMobSpawning(delta) {
+    this.mobSpawnTimer += delta;
+    if (this.mobSpawnTimer < 5) return; // Check every 5 seconds
+    this.mobSpawnTimer = 0;
+
+    const playerPos = this.player.camera.position;
+    const isNight = this.time >= 12000;
+
+    // Count current mobs
+    let hostileCount = 0;
+    let passiveCount = 0;
+    for (const e of this.entities) {
+      if (e.type === 'zombie' || e.type === 'skeleton' || e.type === 'creeper' || e.type === 'skeleton_arrow') {
+        hostileCount++;
+      } else {
+        passiveCount++;
+      }
+    }
+
+    // Spawn hostile mobs at night
+    if (isNight && hostileCount < this.maxHostileMobs) {
+      const spawnAttempts = 2;
+      for (let i = 0; i < spawnAttempts; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 24 + Math.random() * 40; // 24-64 blocks away
+        const sx = Math.floor(playerPos.x + Math.cos(angle) * dist);
+        const sz = Math.floor(playerPos.z + Math.sin(angle) * dist);
+        const sy = this.world.getHeight(sx, sz);
+
+        if (sy > 0) {
+          const block = this.world.getBlock(sx, sy - 1, sz);
+          if (block !== 0 && block !== BlockType.WATER && block !== BlockType.LAVA) {
+            const pos = new THREE.Vector3(sx + 0.5, sy, sz + 0.5);
+            const types = ['zombie', 'skeleton', 'creeper'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            this.spawnEntity(type, pos);
+          }
+        }
+      }
+    }
+
+    // Spawn passive mobs during day
+    if (!isNight && passiveCount < this.maxPassiveMobs) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 16 + Math.random() * 48;
+      const sx = Math.floor(playerPos.x + Math.cos(angle) * dist);
+      const sz = Math.floor(playerPos.z + Math.sin(angle) * dist);
+      const sy = this.world.getHeight(sx, sz);
+
+      if (sy > 0) {
+        const block = this.world.getBlock(sx, sy - 1, sz);
+        if (block === BlockType.GRASS) {
+          const pos = new THREE.Vector3(sx + 0.5, sy, sz + 0.5);
+          const type = Math.random() < 0.5 ? 'pig' : 'chicken';
+          this.spawnEntity(type, pos);
+        }
+      }
+    }
+
+    // Despawn mobs too far from player
+    for (let i = this.entities.length - 1; i >= 0; i--) {
+      const e = this.entities[i];
+      const dist = e.position.distanceTo(playerPos);
+      if (dist > 128) {
+        e.dispose();
+        this.entities.splice(i, 1);
+      }
+    }
+  }
+
+  // Attack entity closest to crosshair
+  attackEntity() {
+    const playerPos = this.player.camera.position;
+    const dir = new THREE.Vector3();
+    this.camera.getWorldDirection(dir);
+
+    let closest = null;
+    let closestDist = 4; // melee reach
+
+    for (const entity of this.entities) {
+      if (entity.type === 'skeleton_arrow') continue;
+      const toEntity = new THREE.Vector3().subVectors(entity.position, playerPos);
+      toEntity.y = toEntity.y - entity.height / 2 + 0.5; // Aim at center
+      const dist = toEntity.length();
+      if (dist > closestDist) continue;
+
+      // Check if roughly in front of player
+      const dot = toEntity.normalize().dot(dir);
+      if (dot > 0.7) { // ~45 degree cone
+        closestDist = dist;
+        closest = entity;
+      }
+    }
+
+    if (closest) {
+      // Calculate attack damage
+      let damage = 1; // Fist damage
+      const held = this.player.inventory.getItem(this.player.inventory.selectedSlot);
+      if (held) {
+        const def = ItemDefinitions[held.type];
+        if (def && def.damage) {
+          damage = def.damage;
+        }
+      }
+
+      closest.takeDamage(damage);
+
+      // Knockback
+      const kb = new THREE.Vector3().subVectors(closest.position, playerPos).normalize();
+      closest.velocity.x += kb.x * 5;
+      closest.velocity.z += kb.z * 5;
+      closest.velocity.y += 4;
+
+      return true;
+    }
+    return false;
   }
 
   animate() {
@@ -462,9 +657,53 @@ export class Game {
       this.player.update(delta);
       this.world.update(delta);
       this.networkManager.update(delta);
+      this.updateTorchLights();
 
       // Update entities
       this.entities.forEach(entity => entity.update(delta));
+
+      // Remove dead entities and spawn drops
+      for (let i = this.entities.length - 1; i >= 0; i--) {
+        const entity = this.entities[i];
+        if (entity.health <= 0) {
+          if (entity.getDrops) {
+            const drops = entity.getDrops();
+            for (const drop of drops) {
+              for (let d = 0; d < drop.count; d++) {
+                const dropItem = new DroppedItem(
+                  this,
+                  Math.floor(entity.position.x),
+                  Math.floor(entity.position.y),
+                  Math.floor(entity.position.z),
+                  drop.type
+                );
+                this.droppedItems.push(dropItem);
+              }
+            }
+          }
+          // XP from killing mobs
+          const xpTable = { zombie: 5, skeleton: 5, creeper: 5, pig: 1, chicken: 1 };
+          const xpAmount = xpTable[entity.type] || 0;
+          if (xpAmount && this.player) this.player.addXP(xpAmount);
+          
+          entity.dispose();
+          this.entities.splice(i, 1);
+        }
+      }
+
+      // Mob spawning
+      this.updateMobSpawning(delta);
+
+      // Update furnaces
+      if (this.craftingUI) {
+        this.craftingUI.updateFurnaces(delta);
+      }
+
+      // Update particles
+      this.particleSystem.update(delta);
+
+      // Update weather
+      this.weatherSystem.update(delta);
 
       // Update dropped items
       for (let i = this.droppedItems.length - 1; i >= 0; i--) {

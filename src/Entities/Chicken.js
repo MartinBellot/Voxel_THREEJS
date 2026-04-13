@@ -32,18 +32,20 @@ export class Chicken {
     }
 
     createBody() {
-        const textureLoader = new THREE.TextureLoader();
-        const texture = textureLoader.load('assets/textures/entities/chicken.png');
-        texture.magFilter = THREE.NearestFilter;
-        texture.minFilter = THREE.NearestFilter;
-        
-        const material = new THREE.MeshStandardMaterial({
-            map: texture,
-            roughness: 1,
-            metalness: 0,
-            side: THREE.DoubleSide,
-            alphaTest: 0.5
-        });
+        // Shared texture and material across all Chicken instances
+        if (!Chicken._material) {
+            const textureLoader = new THREE.TextureLoader();
+            const texture = textureLoader.load('assets/textures/entities/chicken.png');
+            texture.magFilter = THREE.NearestFilter;
+            texture.minFilter = THREE.NearestFilter;
+            
+            Chicken._material = new THREE.MeshLambertMaterial({
+                map: texture,
+                side: THREE.DoubleSide,
+                alphaTest: 0.5
+            });
+        }
+        const material = Chicken._material;
 
         const pixelSize = 1/16;
 
@@ -216,5 +218,13 @@ export class Chicken {
         
         // Head bob
         this.head.rotation.x = Math.sin(this.walkTime * 0.5) * 0.1;
+    }
+
+    dispose() {
+        this.game.scene.remove(this.mesh);
+        this.mesh.traverse(child => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) child.material.dispose();
+        });
     }
 }

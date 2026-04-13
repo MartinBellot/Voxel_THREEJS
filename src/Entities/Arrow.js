@@ -26,19 +26,19 @@ export class Arrow {
     createBody() {
         // Simple arrow mesh
         const shaftGeo = new THREE.BoxGeometry(0.05, 0.05, 0.5);
-        const shaftMat = new THREE.MeshStandardMaterial({ color: 0x8B4513 }); // Brown
+        const shaftMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 }); // Brown
         const shaft = new THREE.Mesh(shaftGeo, shaftMat);
         this.mesh.add(shaft);
         
         const headGeo = new THREE.ConeGeometry(0.08, 0.2, 8);
-        const headMat = new THREE.MeshStandardMaterial({ color: 0xCCCCCC }); // Grey
+        const headMat = new THREE.MeshLambertMaterial({ color: 0xCCCCCC }); // Grey
         const head = new THREE.Mesh(headGeo, headMat);
         head.rotation.x = Math.PI / 2;
         head.position.z = 0.35;
         this.mesh.add(head);
         
         const fletchingGeo = new THREE.BoxGeometry(0.02, 0.15, 0.15);
-        const fletchingMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF });
+        const fletchingMat = new THREE.MeshLambertMaterial({ color: 0xFFFFFF });
         const fletching = new THREE.Mesh(fletchingGeo, fletchingMat);
         fletching.position.z = -0.25;
         this.mesh.add(fletching);
@@ -121,5 +121,11 @@ export class Arrow {
         if (index > -1) {
             this.game.entities.splice(index, 1);
         }
+    }
+
+    dispose() {
+        this.game.scene.remove(this.mesh);
+        if (this.mesh.geometry) this.mesh.geometry.dispose();
+        if (this.mesh.material) this.mesh.material.dispose();
     }
 }

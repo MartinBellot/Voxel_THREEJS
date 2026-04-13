@@ -1,4 +1,4 @@
-import { ItemDefinitions } from './Item.js';
+import { ItemDefinitions, ItemCategory } from './Item.js';
 import { BlockDefinitions } from './World/Block.js';
 import * as THREE from 'three';
 import { PlayerMesh } from './Player/PlayerMesh.js';
@@ -157,60 +157,156 @@ export class InventoryUI {
   }
 
   setupCreativeMenu() {
-    // Populate the creative grid with all available items
     const creativeGrid = document.getElementById('creative-grid');
     if (!creativeGrid) return;
 
+    // Category config
+    const categoryLabels = {
+      [ItemCategory.BLOCK]: 'Building',
+      [ItemCategory.TOOL]: 'Tools',
+      [ItemCategory.WEAPON]: 'Combat',
+      [ItemCategory.ARMOR]: 'Armor',
+      [ItemCategory.FOOD]: 'Food',
+      [ItemCategory.MATERIAL]: 'Materials',
+      [ItemCategory.MISC]: 'Misc',
+    };
+
+    // Group items by category
+    this.creativeCategories = {};
     Object.keys(ItemDefinitions).forEach(key => {
       const itemType = parseInt(key);
       const def = ItemDefinitions[itemType];
+      const cat = def.category || ItemCategory.MISC;
+      if (!this.creativeCategories[cat]) this.creativeCategories[cat] = [];
+      this.creativeCategories[cat].push(itemType);
+    });
+
+    this.creativeItemsPerPage = 36; // 4 rows x 9 cols
+    this.activeCreativeCategory = ItemCategory.BLOCK;
+    this.creativePages = {};
+    Object.keys(this.creativeCategories).forEach(cat => {
+      this.creativePages[cat] = 0;
+    });
+
+    // Build tab bar
+    const tabBar = document.createElement('div');
+    tabBar.className = 'creative-tab-bar';
+    this.creativeTabs = {};
+
+    Object.values(ItemCategory).forEach(cat => {
+      if (!this.creativeCategories[cat] || this.creativeCategories[cat].length === 0) return;
+      const tab = document.createElement('button');
+      tab.className = 'creative-tab';
+      tab.textContent = categoryLabels[cat] || cat;
+      tab.dataset.category = cat;
+      if (cat === this.activeCreativeCategory) tab.classList.add('active');
+      tab.addEventListener('click', () => {
+        this.activeCreativeCategory = cat;
+        Object.values(this.creativeTabs).forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        this.renderCreativeGrid();
+      });
+      this.creativeTabs[cat] = tab;
+      tabBar.appendChild(tab);
+    });
+
+    // Page navigation
+    const pageNav = document.createElement('div');
+    pageNav.className = 'creative-page-nav';
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'creative-page-btn';
+    prevBtn.textContent = '←';
+    prevBtn.addEventListener('click', () => {
+      const cat = this.activeCreativeCategory;
+      if (this.creativePages[cat] > 0) {
+        this.creativePages[cat]--;
+        this.renderCreativeGrid();
+      }
+    });
+    this.creativePageLabel = document.createElement('span');
+    this.creativePageLabel.className = 'creative-page-label';
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'creative-page-btn';
+    nextBtn.textContent = '→';
+    nextBtn.addEventListener('click', () => {
+      const cat = this.activeCreativeCategory;
+      const items = this.creativeCategories[cat] || [];
+      const maxPage = Math.max(0, Math.ceil(items.length / this.creativeItemsPerPage) - 1);
+      if (this.creativePages[cat] < maxPage) {
+        this.creativePages[cat]++;
+        this.renderCreativeGrid();
+      }
+    });
+    pageNav.appendChild(prevBtn);
+    pageNav.appendChild(this.creativePageLabel);
+    pageNav.appendChild(nextBtn);
+
+    // Insert tab bar and page nav before/after grid
+    creativeGrid.parentNode.insertBefore(tabBar, creativeGrid);
+    creativeGrid.parentNode.insertBefore(pageNav, creativeGrid.nextSibling);
+
+    this.creativeGrid = creativeGrid;
+    this.renderCreativeGrid();
+  }
+
+  renderCreativeGrid() {
+    const grid = this.creativeGrid;
+    grid.innerHTML = '';
+
+    const cat = this.activeCreativeCategory;
+    const items = this.creativeCategories[cat] || [];
+    const page = this.creativePages[cat] || 0;
+    const start = page * this.creativeItemsPerPage;
+    const end = Math.min(start + this.creativeItemsPerPage, items.length);
+    const totalPages = Math.max(1, Math.ceil(items.length / this.creativeItemsPerPage));
+
+    this.creativePageLabel.textContent = `${page + 1} / ${totalPages}`;
+
+    for (let i = start; i < end; i++) {
+      const itemType = items[i];
+      const def = ItemDefinitions[itemType];
       const blockDef = BlockDefinitions[def.blockType];
-      
+
       const slot = document.createElement('div');
       slot.className = 'slot creative-slot';
       slot.dataset.type = itemType;
-      
-      // Visual representation
+
       const icon = document.createElement('div');
       icon.className = 'item-icon';
-      
+
       if (def.texture) {
-          icon.style.backgroundImage = `url('assets/textures/item/${def.texture}')`;
-          icon.style.backgroundSize = 'contain';
-          icon.style.backgroundRepeat = 'no-repeat';
-          icon.style.backgroundPosition = 'center';
-          icon.style.backgroundColor = 'transparent';
+        icon.style.backgroundImage = `url('assets/textures/item/${def.texture}')`;
+        icon.style.backgroundSize = 'contain';
+        icon.style.backgroundRepeat = 'no-repeat';
+        icon.style.backgroundPosition = 'center';
+        icon.style.backgroundColor = 'transparent';
       } else if (blockDef && blockDef.color) {
         icon.style.backgroundColor = '#' + blockDef.color.toString(16).padStart(6, '0');
       }
       slot.appendChild(icon);
-      
-      // Tooltip
-      // slot.title = def.name; // Disable native tooltip
 
       slot.addEventListener('mouseenter', (e) => {
-          this.tooltip.innerText = def.name;
-          this.tooltip.style.display = 'block';
-          this.tooltip.style.left = (e.clientX + 15) + 'px';
-          this.tooltip.style.top = (e.clientY + 15) + 'px';
+        this.tooltip.innerText = def.name;
+        this.tooltip.style.display = 'block';
+        this.tooltip.style.left = (e.clientX + 15) + 'px';
+        this.tooltip.style.top = (e.clientY + 15) + 'px';
       });
 
       slot.addEventListener('mousemove', (e) => {
-          this.tooltip.style.left = (e.clientX + 15) + 'px';
-          this.tooltip.style.top = (e.clientY + 15) + 'px';
+        this.tooltip.style.left = (e.clientX + 15) + 'px';
+        this.tooltip.style.top = (e.clientY + 15) + 'px';
       });
 
       slot.addEventListener('mouseleave', () => {
-          this.tooltip.style.display = 'none';
+        this.tooltip.style.display = 'none';
       });
 
       slot.addEventListener('mousedown', (e) => {
-        // In creative, clicking a slot gives you a stack of that item
         this.setCursorItem({ type: itemType, count: 64 });
       });
 
-      creativeGrid.appendChild(slot);
-    });
+      grid.appendChild(slot);
+    }
   }
 
   setupEventListeners() {

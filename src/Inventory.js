@@ -79,4 +79,13 @@ export class Inventory {
     }
     return null;
   }
+
+  findItem(itemType) {
+    for (let i = 0; i < this.size; i++) {
+      if (this.slots[i] && this.slots[i].type === itemType) {
+        return i;
+      }
+    }
+    return -1;
+  }
 }

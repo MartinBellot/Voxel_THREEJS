@@ -9,7 +9,7 @@ export class PlayerMesh {
         // Texture loading via Canvas to support 64x32 and 64x64 skins
         this.loadTexture('assets/textures/entities/player.png');
 
-        this.material = new THREE.MeshStandardMaterial({
+        this.material = new THREE.MeshLambertMaterial({
             map: null, // Will be set when texture loads
             roughness: 1,
             metalness: 0,
